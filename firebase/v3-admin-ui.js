@@ -26,7 +26,7 @@ async function display(tab){
 }
 function renderRecords(m){
  const records=findRecords(items);
- $('#v3-progress').textContent=records.length+' dossier(s) V3 enregistré(s). Les données V2 ne sont pas copiées.';
+ $('#v3-progress').textContent=records.length+' dossier(s) présents dans Firebase V3.';
  const selected=$('#v3-records');selected.replaceChildren();
  const select=document.createElement('select');select.id='v3-record-id';select.style.cssText='padding:10px;max-width:100%;margin:8px';
  select.add(new Option('Nouveau dossier individuel',''));
