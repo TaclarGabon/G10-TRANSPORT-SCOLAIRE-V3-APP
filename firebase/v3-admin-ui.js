@@ -85,6 +85,15 @@ $('#v3-audit').onclick=async()=>{
    const qty=v=>v&&typeof v==='object'?Object.keys(v).length:0;
    output.push(label+' : V2 '+(discovered.length?discovered.map(k=>k+'='+qty(source[k])).join(', '):'structure non identifiée')+' ; V3 '+qty(v3)+' entrée(s)');
   }
+  const detailKeys=['vehicleExpenses','events','gestionJournalV148','route','schoolOrdersV160','morningRouteOrder','qrJourneys','activeCircuitBusV160'];
+  for(const key of detailKeys){
+   const node=source[key];
+   if(node===undefined){output.push('Structure '+key+' : absente');continue}
+   const entries=node&&typeof node==='object'?(Array.isArray(node)?node.filter(x=>x!=null):Object.values(node).filter(x=>x!=null)):[];
+   const sample=entries.find(x=>x&&typeof x==='object');
+   const keys=sample?Object.keys(sample).filter(k=>!/password|secret|token|phone|name|email|address|photo|url|image/i.test(k)).slice(0,24):[];
+   output.push('Structure '+key+' : type '+(Array.isArray(node)?'liste':typeof node)+', '+entries.length+' entrées ; champs détectés : '+(keys.join(', ')||'aucun objet identifié'));
+  }
   output.push('Clés V2 disponibles : '+Object.keys(source).filter(k=>!/secret|token|password|auth/i.test(k)).join(', '));
   output.push('LECTURE SEULE — aucune copie, écriture ni suppression.');
   setStatus(output.join('\n'));
