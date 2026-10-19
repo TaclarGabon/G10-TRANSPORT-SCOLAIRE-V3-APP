@@ -73,10 +73,10 @@ $('#v3-audit').onclick=async()=>{
   const source=await client.readSourceSnapshot();
   if(!source||typeof source!=='object')throw Error('État V2 introuvable');
   const checks=[
-   ['Paiements','payments',['payments','paymentHistory','paymentRecords']],
+   ['Paiements','payments',['payments','paymentHistory','paymentRecords','events','gestionJournalV148','gestionJournalMigratedV148'] ],
    ['Dépenses','expenses',['vehicleExpenses','expenses']],
-   ['Circuits','circuits',['circuits','routes','schoolRoutes']],
-   ['Mouvements QR','movements',['movements','qrMovements','scanHistory','attendanceEvents']]
+   ['Circuits','circuits',['circuits','routes','schoolRoutes','route','schoolOrdersV160','morningRouteOrder']],
+   ['Mouvements QR','movements',['movements','qrMovements','scanHistory','attendanceEvents','qrJourneys','qrSequenceMax']]
   ];
   const output=[];
   for(const [label,mod,aliases] of checks){
