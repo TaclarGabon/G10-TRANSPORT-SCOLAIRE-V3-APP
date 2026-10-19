@@ -775,19 +775,7 @@ function renderExpenses(){
  document.querySelectorAll('[data-exphide]').forEach(b=>b.onclick=()=>{demoExpenses.find(x=>x.id===+b.dataset.exphide).hidden=true;renderExpenses()});
 }
 
-const qrAuditRows=[
- ['G10-TP-SCOL-QR001','LEHOUMA Omer Emmanuel'],['G10-TP-SCOL-QR002','Yatina Joseph junior'],
- ['G10-TP-SCOL-QR003','Siby Éliane'],['G10-TP-SCOL-QR004','ENGO NGUEMA David Adriel'],
- ['G10-TP-SCOL-QR005','Ndjana Diop Dyvine Gabrielle'],['G10-TP-SCOL-QR007','ESSONE NTOUTOUME Jean Raphaël'],
- ['G10-TP-SCOL-QR008','Kengue A mouanga ketura emerode'],['G10-TP-SCOL-QR017','OYOUOMI KANE Adnane'],
- ['G10-TP-SCOL-QR018','KANE MPIGHA Hamza'],['G10-TP-SCOL-QR011','OZENGA ABIGAËLLE FRANCHELLA'],
- ['G10-TP-SCOL-QR012','MANDJILA MADOUKOU Francine G.'],['G10-TP-SCOL-QR013','ANTSOUO LOGNE Marie P.'],
- ['G10-TP-SCOL-QR015','ADA ESSONE Marie Ange Gabrielle'],['G10-TP-SCOL-QR016','Nze Essone consthy vincyny Michel'],
- ['G10-TP-SCOL-QR019','KANE OYOUOMI Anis Moussa'],['G10-TP-SCOL-QR023','NDANGA EMANE Sharic Daniel'],
- ['G10-TP-SCOL-QR024','KOUNGA NZIGOU Keven Elyana'],['G10-TP-SCOL-QR025','MAGANGA NZIGOU Eden'],
- ['G10-TP-SCOL-QR026','Goma Essono Gabriel'],['G10-TP-SCOL-QR027','NDJOUBA DANIEL NATHAN'],
- ['G10-TP-SCOL-QR028','APENDO OKOUE CURTISSSIA SHERYS ALEXIA'],['G10-TP-SCOL-QR030','NYNGONE BAVIOGUI ADRIA FLORE']
-];
+const qrAuditRows=[]; // Anciennes références/noms retirés de la prévisualisation : V2 reste la seule source.\n
 function showQrAudit(){
  const seen=new Set(),duplicates=[];
  qrAuditRows.forEach(r=>{if(seen.has(r[0]))duplicates.push(r[0]);seen.add(r[0])});
