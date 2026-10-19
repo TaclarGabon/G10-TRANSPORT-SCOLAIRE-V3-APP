@@ -100,7 +100,7 @@ const box=document.createElement('section');
 box.id='g10-v2-preview-auth';
 box.className='card';
 box.innerHTML='<div class="section-heading">Prévisualisation de la nouvelle interface avec les données V2 — lecture seule</div>'+
-  '<form id="g10-v2-auth-form" autocomplete="on" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">'+
+  '<form id="g10-v2-auth-form" autocomplete="on">'+
   '<label>Email Firebase <input id="g10-v2-email" type="email" autocomplete="username" required></label>'+
   '<label>Mot de passe <input id="g10-v2-password" type="password" autocomplete="current-password" required></label>'+
   '<button class="btn blue" type="submit">Se connecter et charger la V2</button></form>'+
