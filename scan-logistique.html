@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>G10 — Scan QR Logistique V3</title>
+<style>
+:root{--navy:#123d78;--green:#128c58;--ink:#163452;--line:#d8e5ef;--bg:#eef4fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px}
+header{background:var(--navy);color:white;padding:18px 18px 22px}header strong{font-size:22px}header small{display:block;opacity:.85;margin-top:5px}
+main{max-width:670px;margin:0 auto;padding:16px 14px 42px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:15px;box-shadow:0 2px 8px #123d780a}
+h2{margin:0 0 12px;font-size:21px}h3{margin:0 0 10px;font-size:18px}p{line-height:1.45;margin:8px 0 12px}.small{font-size:13px;color:#506b85}label{display:block;font-weight:650;margin:12px 0 6px}input,select,button{font:inherit}input,select{width:100%;padding:12px 13px;border:1px solid #b5cbdc;border-radius:9px;background:#fff;min-height:46px}button{border:0;border-radius:10px;padding:12px 16px;min-height:46px;cursor:pointer;font-weight:650;background:var(--navy);color:white}button.primary{background:var(--green)}button.secondary{background:#e6eff7;color:var(--ink)}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.actions button{flex:1;min-width:125px}
+#camera{overflow:hidden;border-radius:12px;background:#102236;min-height:0}#camera video{width:100%!important;max-height:55vh;object-fit:cover}.status{border-radius:10px;background:#eaf3fa;border:1px solid #c4dce9;padding:11px;margin:10px 0;white-space:pre-wrap}.status.error{background:#fff1ee;border-color:#eab9b1;color:#9e2919}.status.success{background:#e5f6eb;border-color:#b5dfc4;color:#0a6c3e}
+.result{border:2px solid #afd9c1;border-radius:12px;padding:14px;margin-top:15px;background:#f6fff9}.result strong{font-size:22px;display:block;margin:4px 0 8px}.result dl{display:grid;grid-template-columns:110px 1fr;gap:7px;margin:0}.result dt{color:#61768b}.result dd{margin:0;font-weight:650}footer{text-align:center;color:#688198;font-size:12px;padding:10px} [hidden]{display:none!important}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+<header><strong>G10 TRANSPORT SCOLAIRE</strong><small>Scan QR — Contrôleuse de logistique · Firebase V3</small></header>
+<main>
+<section class="card" id="loginBox">
+<h2>Connexion sécurisée</h2><p>Réservé à la contrôleuse de logistique et à la Direction. Aucun accès aux paiements ou aux données V2.</p>
+<form id="loginForm"><label for="email">Adresse e-mail Firebase</label><input id="email" type="email" required autocomplete="username"><label for="password">Mot de passe</label><input id="password" type="password" required autocomplete="current-password"><div class="actions"><button class="primary" type="submit" id="loginBtn">Se connecter</button></div></form>
+</section>
+<section class="card" id="connected" hidden><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><b id="userRole"></b><div class="small" id="userEmail"></div></div><button class="secondary" id="logout">Quitter</button></div><div class="status" id="notice" role="status" aria-live="polite">Connexion établie.</div></section>
+<section class="card" id="prepare" hidden>
+<h2>Préparation par la Direction</h2><p>Cette opération copie uniquement <b>l'identifiant, le nom, le bus et la référence QR</b> des abonnés V3 dans un répertoire de scan V3. Aucun abonnement ni badge existant n'est modifié.</p>
+<button class="primary" id="syncRoster">Préparer / actualiser la liste des badges V3</button><p class="small">Cette opération doit être refaite après l'ajout d'un élève, le changement de son bus ou de sa référence QR.</p>
+</section>
+<section class="card" id="scanSection" hidden>
+<h2>Scanner les badges des élèves</h2><p class="small">Sélectionne le bus et l'étape, puis présente le badge à la caméra. Le QR de la V2 est lu ici sans ouvrir la V2.</p>
+<label for="bus">Bus contrôlé</label><select id="bus"><option value="">Choisir un bus</option><option value="BUS-1">Bus 1 — Akanda</option><option value="BUS-2">Bus 2 — Inter-Akanda</option><option value="BUS-3">Bus 3 — Owendo</option></select>
+<label for="stage">Étape du trajet</label><select id="stage"><option value="">Choisir une étape</option><option value="boardingAM">Montée du matin</option><option value="schoolArrival">Arrivée à l’école</option><option value="boardingPM">Récupération après les cours</option><option value="homeDrop">Dépose au domicile / point relais</option></select>
+<div class="actions"><button class="primary" id="start">Activer la caméra</button><button class="secondary" id="stop" disabled>Arrêter la caméra</button></div>
+<div id="camera" aria-label="Zone de lecture des codes QR"></div>
+<div id="candidate" class="result" hidden><span class="small">Badge reconnu — confirmer uniquement si l'élève est réellement présent</span><strong id="studentName"></strong><dl><dt>Bus</dt><dd id="studentBus"></dd><dt>Étape</dt><dd id="studentStage"></dd><dt>Référence QR</dt><dd id="studentRef"></dd></dl><div class="actions"><button class="primary" id="confirm">Confirmer le mouvement réel</button><button class="secondary" id="cancel">Annuler</button></div></div>
+<p class="small">Un même élève ne peut pas être enregistré deux fois pour la même étape le même jour. La date utilisée est celle de Libreville.</p>
+</section>
+<footer>G10 V3 — Accès restreint · Données de mouvements enregistrées uniquement dans Firebase V3</footer>
+</main>
+<script>
+(()=>{'use strict';
+const cfg={apiKey:'AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o',authDomain:'g10-transport-scolaire-v2.firebaseapp.com',databaseURL:'https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app',projectId:'g10-transport-scolaire-v2',appId:'1:836907463780:web:585e2b4f075c8ff172db71'};
+const ROOT='g10TransportScolaireV3',DATA=ROOT+'/data';
+const $=id=>document.getElementById(id), names={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'},stages={boardingAM:'Montée du matin',schoolArrival:'Arrivée à l’école',boardingPM:'Récupération après les cours',homeDrop:'Dépose au domicile / point relais'};
+let fb,db,role='',roster={},scanner=null,scanning=false,pending=null,busy=false,loginLock=false;
+const firebaseReady=()=>{if(!window.firebase?.database||!window.firebase?.auth)throw Error('Bibliothèques Firebase indisponibles. Vérifie Internet.');if(!firebase.apps.length)firebase.initializeApp(cfg);fb=firebase;db=fb.database();};
+function notice(message,kind=''){const el=$('notice');el.textContent=message;el.className='status'+(kind?' '+kind:'');el.hidden=false;}
+function errorText(e){return String(e?.message||e?.code||e).replace(/^Firebase: /,'');}
+function dateGabon(){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;}
+function validKey(id){return !!id&&id.length<=120&&!/[.#$\[\]/\x00-\x1f\x7f]/.test(id);}
+async function stopCamera(){if(scanner&&scanning){try{await scanner.stop()}catch(e){console.warn(e)}scanning=false}if(scanner){try{scanner.clear()}catch(e){}scanner=null}$('start').disabled=false;$('stop').disabled=true;}
+function reset(){role='';roster={};pending=null;$('loginBox').hidden=false;$('connected').hidden=true;$('scanSection').hidden=true;$('prepare').hidden=true;$('candidate').hidden=true;$('password').value='';}
+async function loadRoster(){const value=(await db.ref(DATA+'/scanRoster').once('value')).val();roster=value&&typeof value==='object'?value:{};const count=Object.keys(roster).length;notice(count?count+' badges disponibles dans le répertoire de scan V3.':'Aucun badge préparé dans V3. Demande à la Direction de préparer la liste.',count?'success':'error');}
+async function login(){if(loginLock)return;loginLock=true;$('loginBtn').disabled=true;try{firebaseReady();const credential=await fb.auth().signInWithEmailAndPassword($('email').value.trim(),$('password').value);const user=credential.user;const r=(await db.ref(ROOT+'/roles/'+user.uid).once('value')).val();if(!r||r.enabled!==true||!['logistique','direction'].includes(r.role))throw Error('Accès refusé : rôle logistique ou Direction actif requis.');role=r.role;$('loginBox').hidden=true;$('connected').hidden=false;$('userRole').textContent=role==='logistique'?'Contrôleuse de logistique':'Direction';$('userEmail').textContent=user.email||'';
+if(role==='direction'){$('prepare').hidden=false;notice('Compte Direction : prépare la liste des badges. Pour les scans, connecte le compte Logistique.');}else{$('scanSection').hidden=false;await loadRoster();}
+}catch(e){notice('Connexion refusée : '+errorText(e),'error');$('loginBox').hidden=false;$('connected').hidden=false;try{await fb?.auth().signOut()}catch(_){}}finally{loginLock=false;$('loginBtn').disabled=false;}}
+$('loginForm').addEventListener('submit',e=>{e.preventDefault();login()});
+$('logout').onclick=async()=>{await stopCamera();try{await fb?.auth().signOut()}catch(e){}reset();};
+$('syncRoster').onclick=async()=>{if(role!=='direction')return;const btn=$('syncRoster');btn.disabled=true;try{
+ const raw=(await db.ref(DATA+'/subs').once('value')).val();const values=Array.isArray(raw)?raw.filter(Boolean):Object.values(raw||{});const next={},refs=new Set();let skipped=0;
+ for(const s of values){if(!s||typeof s!=='object'||s.v3Archived===true){skipped++;continue}const id=String(s.id??'').trim(),qrRef=String(s.qrRef??'').trim(),busId=String(s.busId??'').trim(),name=String(s.name??'').trim();if(!validKey(id)||!/^G10-TP-SCOL-QR\d+$/i.test(qrRef)||!names[busId]||!name){skipped++;continue}if(refs.has(qrRef.toUpperCase()))throw Error('Référence QR en doublon : '+qrRef+'. Synchronisation interrompue.');refs.add(qrRef.toUpperCase());next[id]={id,name,busId,qrRef};}
+ const n=Object.keys(next).length;if(!n)throw Error('Aucun badge valide à synchroniser. Aucun changement effectué.');
+ if(!confirm('Mettre à jour le répertoire de scan V3 avec '+n+' badge(s) ? '+skipped+' dossier(s) non éligible(s) seront exclus. La V2 restera intacte.'))return;
+ await db.ref(DATA+'/scanRoster').set(next);const verify=(await db.ref(DATA+'/scanRoster').once('value')).val()||{};if(Object.keys(verify).length!==n)throw Error('Écriture effectuée, mais le nombre relu diffère : vérifie avant de recommencer.');notice('Répertoire V3 enregistré et relu : '+n+' badge(s), '+skipped+' dossier(s) exclus.','success');
+ }catch(e){notice('Préparation refusée : '+errorText(e),'error')}finally{btn.disabled=false}};
+function qrReference(decoded){const raw=String(decoded??'').trim();if(/^G10-TP-SCOL-QR\d+$/i.test(raw))return raw.toUpperCase();let u;try{u=new URL(raw)}catch(e){return null}if(u.protocol!=='https:'||u.hostname!=='taclargabon.github.io'||u.pathname!=='/G10-TRANSPORT-SCOLAIRE-V2/qr-test.html')return null;const ref=u.searchParams.get('code');return ref&&/^G10-TP-SCOL-QR\d+$/i.test(ref)?ref.toUpperCase():null;}
+async function onDetected(decoded){if(pending||busy||role!=='logistique')return;const bus=$('bus').value,stage=$('stage').value;if(!bus||!stage){notice('Choisis d’abord le bus et l’étape.','error');return;}const qr=qrReference(decoded);if(!qr){notice('QR non reconnu : ce badge ne correspond pas au format G10 prévu.','error');return;}
+const s=Object.values(roster).find(v=>String(v.qrRef).toUpperCase()===qr);if(!s){notice('Référence QR absente du répertoire V3. Demande à la Direction d’actualiser les badges.','error');return;}if(s.busId!==bus){notice('Bus incorrect : '+s.name+' est affecté à '+names[s.busId]+'. Aucun mouvement enregistré.','error');return;}
+pending={...s,stage,day:dateGabon()};await stopCamera();$('studentName').textContent=s.name;$('studentBus').textContent=names[s.busId];$('studentStage').textContent=stages[stage];$('studentRef').textContent=s.qrRef;$('candidate').hidden=false;notice('Badge reconnu. Vérifie la présence de l’élève puis confirme.');}
+$('start').onclick=async()=>{if(role!=='logistique')return;if(!$('bus').value||!$('stage').value){notice('Choisis le bus et l’étape avant d’activer la caméra.','error');return;}if(!Object.keys(roster).length){await loadRoster();if(!Object.keys(roster).length)return;}
+if(!window.isSecureContext){notice('La caméra nécessite une page HTTPS. Le fichier ouvert localement sur iPhone ne suffit pas.','error');return;}if(!window.Html5Qrcode){notice('Lecteur QR indisponible : vérifie Internet puis actualise.','error');return;}
+try{$('start').disabled=true;scanner=new Html5Qrcode('camera',{verbose:false});await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},text=>{onDetected(text).catch(e=>notice(errorText(e),'error'))},()=>{});scanning=true;$('stop').disabled=false;notice('Caméra active. Présente le badge dans le cadre.');}catch(e){await stopCamera();notice('Impossible d’ouvrir la caméra : '+errorText(e)+'. Vérifie l’autorisation caméra et HTTPS.','error')}};
+$('stop').onclick=()=>stopCamera();
+$('cancel').onclick=()=>{pending=null;$('candidate').hidden=true;notice('Scan annulé. Tu peux réactiver la caméra.');};
+async function shortHash(value){const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest)).slice(0,12).map(x=>x.toString(16).padStart(2,'0')).join('');}
+$('confirm').onclick=async()=>{if(busy||!pending||role!=='logistique')return;busy=true;const button=$('confirm');button.disabled=true;const student={...pending};try{
+ const user=fb.auth().currentUser;if(!user)throw Error('Session expirée. Reconnecte-toi.');const r=(await db.ref(ROOT+'/roles/'+user.uid).once('value')).val();if(r?.enabled!==true||r.role!=='logistique')throw Error('Accès logistique non autorisé.');
+ const hash=await shortHash(student.id);const id='MOVE-QR-'+student.day.replace(/-/g,'')+'-'+student.stage+'-'+hash;const ref=db.ref(DATA+'/movements/'+id);
+ const existing=(await ref.once('value')).val();if(existing){notice('Ce mouvement a déjà été enregistré pour cet élève, cette étape et cette date. Aucun doublon créé.','error');return;}
+ const timestamp=fb.database.ServerValue.TIMESTAMP;
+ const event={id,studentId:student.id,busId:student.busId,stage:student.stage,day:student.day,atMs:timestamp,source:'logistique-qr',qrRef:student.qrRef,scannedBy:user.uid,createdAt:timestamp,updatedAt:timestamp,updatedBy:user.uid};
+ await ref.set(event);
+ let verified;try{verified=(await ref.once('value')).val()}catch(e){notice('Firebase a confirmé l’enregistrement, mais la relecture a échoué. Ne rescane pas avant vérification.','error');return;}
+ if(!verified||verified.id!==id||verified.source!=='logistique-qr'||verified.studentId!==student.id)throw Error('Relecture inattendue. Vérifie l’enregistrement avant de réessayer.');
+ notice('Mouvement enregistré et relu dans Firebase V3 : '+student.name+' — '+stages[student.stage]+' — '+new Date(verified.atMs).toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+'.','success');
+ }catch(e){notice('Enregistrement non confirmé : '+errorText(e)+'. Si le réseau a coupé, vérifie avant de recommencer.','error')}finally{busy=false;button.disabled=false;pending=null;$('candidate').hidden=true;}};
+// Aucun accès automatique à la caméra à l’ouverture. Connexion explicite requise.
+try{firebaseReady()}catch(e){$('connected').hidden=false;notice(errorText(e),'error')}
+})();
+</script>
+</body></html>
