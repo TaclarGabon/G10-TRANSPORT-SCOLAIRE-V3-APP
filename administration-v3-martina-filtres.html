@@ -160,6 +160,11 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-month-filter button.on{background:#1264b7;color:white;border-color:#1264b7}
 .v3-month-filter button:focus-visible{outline:3px solid #f5b942;outline-offset:2px}
 .v3-month-filter-note{color:#506e8a;font-size:12px;margin:2px 0 14px}
+.v3-filter-bar{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:12px 14px;background:#f0f6fd;border:1px solid #c9ddf1;border-radius:12px;margin:10px 0}
+.v3-filter-bar label{display:flex;flex-direction:column;gap:5px;font-weight:700;color:#123d78;font-size:12px}
+.v3-filter-bar select{min-width:175px;max-width:min(320px,85vw);padding:10px;border-radius:8px;border:1px solid #bed2e7;background:white;color:#123d78;font-weight:600}
+.v3-filter-count{font-size:12px;color:#355e80;margin-left:auto}
+.v3-circuit-bus.v3-pending{outline:2px solid #efb546;background:#fff9e8}
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div style="margin:8px 0 4px"><button id="v3-reset-password" type="button" style="border:0;background:none;color:#1765b5;text-decoration:underline;cursor:pointer;padding:5px 0;font-weight:700">Définir ou réinitialiser mon mot de passe V3</button></div><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><div style="color:#61778d;font-size:11px;margin-top:5px" id="g10-build-label">Administration G10 — édition 20 octobre, connexion vérifiable</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
@@ -969,11 +974,38 @@ function rowNew(module,fields,defaults={}){
  const record={id:freshId(module),...defaults};
  editForm(module,record,fields,null,true);
 }
-const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus (BUS-1/2/3)']];
+const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus affecté']];
+
+const v3ListFilters={abonnes:{student:'',school:'',bus:''},abonnement:{student:''}};
+const v3StudentChoices=()=>subs.filter(s=>s.name).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')).map(s=>[String(s.id),s.name]);
+function v3FilterBar(tab){
+ const state=v3ListFilters[tab],fields=tab==='abonnes'?
+ [['student','Élève','Tous les élèves',v3StudentChoices()],['school','École','Toutes les écoles',[...new Set(subs.map(s=>s.school).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x])],['bus','Bus','Tous les bus',[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]]]:
+ [['student','Élève','Tous les élèves',v3StudentChoices()]];
+ return '<div class="v3-filter-bar" aria-label="Filtres du tableau">'+fields.map(([key,label,all,opts])=>
+ '<label>'+label+'<select data-v3-filter="'+key+'"><option value="">'+all+'</option>'+opts.map(([value,title])=>'<option value="'+esc(value)+'"'+(String(state[key])===String(value)?' selected':'')+'>'+esc(title)+'</option>').join('')+'</select></label>').join('')+
+ '<span class="v3-filter-count" id="v3-filter-count"></span></div>';
+}
+function v3AttachFilters(tab){
+ const state=v3ListFilters[tab];
+ const apply=()=>{
+  let count=0;
+  p.querySelectorAll('tr[data-v3-row-id]').forEach(row=>{
+   const s=subs.find(x=>String(x.id)===row.dataset.v3RowId);
+   const visible=!!s&&(!state.student||String(s.id)===state.student)&&(!state.school||s.school===state.school)&&(!state.bus||s.busId===state.bus);
+   row.hidden=!visible;if(visible)count++;
+  });
+  const el=p.querySelector('#v3-filter-count');if(el)el.textContent=count+' dossier(s) affiché(s)';
+ };
+ p.querySelectorAll('[data-v3-filter]').forEach(el=>el.onchange=()=>{state[el.dataset.v3Filter]=el.value;apply()});
+ apply();
+}
+
 renderSubs=function(){
  p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button>')+
- table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
- subs.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
+ v3FilterBar('abonnes')+table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
+ subs.map((s,i)=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
+ v3AttachFilters('abonnes');
  p.querySelector('#addSub').onclick=()=>rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});
  p.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editForm('subs',subs[+b.dataset.edit],subFields,b.closest('tr')));
  p.querySelectorAll('[data-clean]').forEach(b=>b.onclick=async()=>{
@@ -981,6 +1013,21 @@ renderSubs=function(){
   const updated={...r,v3Cleaned:true};for(const key of ['school','className','guardian','whatsapp','emergencyPhone','address'])updated[key]='';
   try{await saveRecord('subs',updated,copy(r));}catch(e){alert(formatError(e));}
  });
+};
+
+// Abonnements V3 : sélection élève et enregistrement réel.
+const v3SubscriptionFields=[['plan','Formule'],['partialService','Précision'],['price','Tarif mensuel','number'],['discountPct','Réduction'],['subscriptionStatus','Statut']];
+renderSubscription=function(){
+ p.innerHTML=header('Tableau des abonnements — tous les axes','Choisir un élève puis modifier son abonnement. Enregistrement uniquement dans Firebase V3.')+
+ v3FilterBar('abonnement')+
+ table(['Élève','École','Bus','Formule','Précision','Tarif mensuel','Réduction','Statut','QR','Action'],
+ subs.map(s=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.busId)+'</td><td>'+esc(s.plan||'Standard')+'</td><td>'+esc(s.partialService||'—')+'</td><td>'+cash(s.price)+'</td><td>'+esc(s.paymentV147?.discountPct||0)+' %</td><td>'+esc(s.subscriptionStatus||'À confirmer')+'</td><td><button class="v3-light-qr" data-sub-qr="'+esc(s.id)+'" '+(!s.qrRef?'disabled':'')+'>Voir QR</button></td><td><button class="edit-btn" data-sub-edit="'+esc(s.id)+'">Modifier</button></td></tr>').join(''));
+ v3AttachFilters('abonnement');
+ p.querySelectorAll('[data-sub-edit]').forEach(b=>b.onclick=()=>{
+  const student=subs.find(x=>String(x.id)===b.dataset.subEdit);if(!student)return;
+  editForm('subs',{...student,discountPct:String(student.paymentV147?.discountPct||0)},v3SubscriptionFields,b.closest('tr'));
+ });
+ p.querySelectorAll('[data-sub-qr]').forEach(b=>b.onclick=()=>{const i=subs.findIndex(x=>String(x.id)===b.dataset.subQr);if(i>=0)openBadge(i)});
 };
 const driverFields=[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus (BUS-1/2/3)'],['plate','Immatriculation']];
 renderDrivers=function(){
