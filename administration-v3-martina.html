@@ -162,7 +162,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-month-filter-note{color:#506e8a;font-size:12px;margin:2px 0 14px}
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
-<section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div id="v3-auth-status" role="status" aria-live="polite" style="padding:8px 0;color:#123d78">Connexion sécurisée à l’administration.</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
+<section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
 <nav class="top" id="tabs" style="display:none">
 <button class="on" data-tab="abonnes">Abonnés</button>
 <button data-tab="abonnement">Abonnement</button>
@@ -762,7 +762,12 @@ const tabs=document.getElementById('tabs');
 const statusBar=document.getElementById('v3-changes');
 const gate=document.getElementById('v3-v3-connection');
 const authStatus=gate.querySelector('#v3-auth-status');
-function message(t){authStatus.textContent=t;}
+function message(t,kind='info'){
+ authStatus.textContent=t;
+ authStatus.style.background=kind==='error'?'#fff1f0':kind==='success'?'#edfbf2':'#f1f7ff';
+ authStatus.style.borderColor=kind==='error'?'#e8a9a6':kind==='success'?'#8ed2a7':'#bfd5ec';
+ authStatus.style.color=kind==='error'?'#9d2623':kind==='success'?'#08723e':'#123d78';
+}
 function initFirebase(){
  if(typeof firebase==='undefined'||!firebase.initializeApp)throw Error('Firebase indisponible : vérifie ta connexion Internet.');
  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
@@ -841,7 +846,7 @@ async function reloadV3(){
  if(!data)throw Error('La branche Firebase V3/data est vide. Aucun chargement depuis V2.');
  applyV3(data);
  authorized=true;
- message('Connexion établie : '+subs.length+' abonnés, '+expense.length+' dépenses. Profil : '+(activeRole==='direction'?'Direction':'Administration')+'.');
+ message('Connexion établie : '+subs.length+' abonnés, '+expense.length+' dépenses. Profil : '+(activeRole==='direction'?'Direction':'Administration')+'.','success');
  gate.querySelector('#v3-refresh').hidden=false;gate.querySelector('#v3-signout').hidden=false;
  gate.querySelector('#v3-login-form').style.display='none';
  gate.querySelector('h2').hidden=true;gate.querySelector('p').hidden=true;gate.classList.add('v3-connected');
@@ -1314,13 +1319,30 @@ const originalReports=renderReports;
 drawer.rapports=()=>{originalReports();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Indicateurs des fiches V3 importées ; paiements V3 séparés, rapprochement comptable à confirmer.';};
 drawer.historique=()=>{renderHistory();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Historique local de cette session uniquement ; journal serveur non disponible.';};
 // Connexion manuelle : aucune connexion automatique, aucune donnée sensible dans l’HTML.
+// Retour immédiat même si le navigateur rencontre un souci de chargement.
+window.addEventListener('error',e=>{
+ if(authorized)return;
+ if(e.target&&e.target.tagName==='SCRIPT')message('Le module de connexion Firebase ne se charge pas. Vérifie ta connexion et recharge la page.','error');
+ else if(e.error)message('Erreur technique de chargement : '+String(e.message||'script').slice(0,180),'error');
+},true);
 gate.querySelector('#v3-login-form').addEventListener('submit',async e=>{
- e.preventDefault();const btn=gate.querySelector('#v3-connect');btn.disabled=true;message('Connexion à Firebase V3…');
+ e.preventDefault();const btn=gate.querySelector('#v3-connect');btn.disabled=true;message('Étape 1/3 — vérification des identifiants Firebase…');
  try{
   const fb=initFirebase();await fb.auth().setPersistence(fb.auth.Auth.Persistence.NONE);
   await fb.auth().signInWithEmailAndPassword(gate.querySelector('#v3-email').value,gate.querySelector('#v3-password').value);
-  gate.querySelector('#v3-password').value='';await reloadV3();
- }catch(err){authorized=false;tabs.style.display='none';p.style.display='none';p.replaceChildren();message('Connexion/lecture V3 refusée : '+formatError(err));try{await firebase.auth().signOut()}catch(_){}}
+  gate.querySelector('#v3-password').value='';message('Étape 2/3 — identifiants acceptés. Vérification du rôle Administration V3…');await reloadV3();
+ }catch(err){
+  authorized=false;tabs.style.display='none';p.style.display='none';p.replaceChildren();
+  const code=String(err?.code||'');
+  const desc=String(err?.message||'');
+  const human=code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found')?'Identifiants non reconnus par Firebase. Vérifie le compte et le mot de passe, sans me les transmettre.':
+    code.includes('network')||code.includes('too-many-requests')?'Firebase ne répond pas ou limite les tentatives. Attends un instant et réessaie.':
+    desc.includes('Accès V3 refusé')?'Le compte Firebase est reconnu, mais son rôle Administration/Direction n’est pas activé dans la base V3. Ce réglage est distinct de la V2.':
+    code.includes('permission-denied')||desc.includes('PERMISSION_DENIED')?'Identifiants reconnus, mais lecture refusée par les règles Firebase V3.':
+    'Connexion impossible : '+formatError(err);
+  message(human,'error');
+  try{await firebase.auth().signOut()}catch(_){}
+}
  finally{btn.disabled=false;}
 });
 gate.querySelector('#v3-refresh').onclick=async()=>{
