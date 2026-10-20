@@ -1541,8 +1541,78 @@ drawer.qr=renderQR;
 
 drawer.abonnes=renderSubs;drawer.abonnement=renderSubscription;drawer.paiements=renderPayments;
 drawer.circuit=()=>renderCircuit(currentCircuitBus,currentCircuitPhase);drawer.mouvements=renderMovements;drawer.chauffeurs=renderDrivers;drawer.staff=renderStaff;drawer.depenses=renderExpenses;
+
+// Analyse des dépenses par véhicule. Lecture seule des données réelles V3.
+const v3CostReportState={period:'week',date:''};
+function v3CostISO(date){
+ const str=String(date||'').trim();
+ if(/^\d{4}-\d{2}-\d{2}$/.test(str)){const d=new Date(str+'T12:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===str?str:'';}
+ const fr=str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+ if(fr)return v3CostISO(fr[3]+'-'+fr[2]+'-'+fr[1]);
+ return '';
+}
+function v3CostWindow(period,iso){
+ const d=new Date(iso+'T12:00:00Z');
+ const first=new Date(d),last=new Date(d);
+ if(period==='week'){const delta=(d.getUTCDay()+6)%7;first.setUTCDate(d.getUTCDate()-delta);last.setUTCDate(first.getUTCDate()+6);}
+ else if(period==='fortnight'){first.setUTCDate(d.getUTCDate()<=15?1:16);last.setUTCDate(d.getUTCDate()<=15?15:new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate());}
+ else{first.setUTCDate(1);last.setUTCDate(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate());}
+ return [first.toISOString().slice(0,10),last.toISOString().slice(0,10)];
+}
+function v3CostCategory(e){
+ const t=String(e.type||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(t.includes('carburant')||t.includes('gasoil')||t.includes('diesel'))return 'fuel';
+ if(t.includes('lavage'))return 'wash';
+ if(t.includes('pause'))return 'break';
+ if(t.includes('depann')||t.includes('repar'))return 'repair';
+ return 'other';
+}
+function v3CostReportData(period,date){
+ const [from,to]=v3CostWindow(period,date);
+ const busIds=['BUS-1','BUS-2','BUS-3','_unassigned'];
+ const rows=busIds.map(id=>({id,verified:0,pending:0,total:0,count:0,fuel:0,wash:0,break:0,repair:0,other:0}));
+ const lookup=new Map(rows.map(row=>[row.id,row]));
+ let noDate=0;
+ for(const e of expense){
+  const d=v3CostISO(e.date);if(!d){noDate++;continue;}
+  if(d<from||d>to)continue;
+  const bus=String(e.busId||e.bus||'');
+  const row=lookup.get(bus)||lookup.get('_unassigned');
+  const amount=moneyNum(e.amount);
+  row.total+=amount;row.count++;row[v3CostCategory(e)]+=amount;
+  if(/valid|confirm/.test(expState(e)))row.verified+=amount;else row.pending+=amount;
+ }
+ const leaders=rows.slice(0,3).filter(r=>r.verified>0).sort((a,b)=>b.verified-a.verified);
+ const highest=leaders.length?leaders.filter(r=>r.verified===leaders[0].verified).map(r=>r.id):[];
+ return {from,to,rows,highest,noDate,verified:rows.reduce((n,r)=>n+r.verified,0),pending:rows.reduce((n,r)=>n+r.pending,0)};
+}
+function v3RenderCostReport(){
+ const existing=p.querySelector('#v3-cost-report');if(existing)existing.remove();
+ const wrapper=document.createElement('section');wrapper.id='v3-cost-report';wrapper.className='card';
+ const currentDate=v3CostReportState.date||new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const date=v3CostISO(currentDate)||new Date().toISOString().slice(0,10);
+ v3CostReportState.date=date;
+ const result=v3CostReportData(v3CostReportState.period,date);
+ const names={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo','_unassigned':'Sans bus identifié'};
+ const periodNames={week:'Semaine (lundi–dimanche)',fortnight:'Quinzaine (1–15 / 16–fin)',month:'Mois civil'};
+ const total=r=>r.total;
+ wrapper.innerHTML='<h3>Analyse des dépenses par bus</h3>'+
+ '<p class="small">Comparaison par semaine, quinzaine ou mois. Inclut les dépenses archivées, sans modification des données. Le classement porte uniquement sur les dépenses validées ; les autres sont présentées séparément.</p>'+
+ '<div class="v3-filter-bar"><label>Période<select id="v3-cost-period">'+Object.entries(periodNames).map(([v,t])=>'<option value="'+v+'"'+(v===v3CostReportState.period?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select></label>'+
+ '<label>Date de référence<input id="v3-cost-date" type="date" value="'+date+'"></label></div>'+
+ '<p><strong>Du '+esc(result.from)+' au '+esc(result.to)+'</strong> — Validées : <strong>'+cash(result.verified)+'</strong> • Autres statuts : '+cash(result.pending)+'</p>'+
+ '<p class="small">'+(result.highest.length?'Plus forte dépense validée : <b>'+result.highest.map(id=>esc(names[id])).join(' et ')+'</b> ('+cash(result.rows.find(r=>r.id===result.highest[0]).verified)+').':'Aucune dépense validée sur cette période : aucun bus ne peut être classé.')+'</p>'+
+ table(['Bus','Carburant','Lavage','Frais de pause','Dépannage','Autres','Validées','Autres statuts','Total déclaré','Fiches'],
+ result.rows.map(r=>'<tr><td><b>'+esc(names[r.id])+'</b></td><td>'+cash(r.fuel)+'</td><td>'+cash(r.wash)+'</td><td>'+cash(r.break)+'</td><td>'+cash(r.repair)+'</td><td>'+cash(r.other)+'</td><td>'+cash(r.verified)+'</td><td>'+cash(r.pending)+'</td><td><b>'+cash(total(r))+'</b></td><td>'+r.count+'</td></tr>').join(''))+
+ (result.noDate?'<p class="small">Attention : '+result.noDate+' dépense(s) sans date reconnue sont exclues de l’analyse temporelle.</p>':'')+
+ '<p class="small">« Autres statuts » inclut les dépenses en attente, non confirmées ou sans statut. « Sans bus identifié » n’entre pas dans le classement. Les chiffres sont ceux enregistrés en V3, sans rapprochement bancaire.</p>';
+ p.insertBefore(wrapper,p.firstChild.nextSibling);
+ wrapper.querySelector('#v3-cost-period').onchange=e=>{v3CostReportState.period=e.target.value;v3RenderCostReport();};
+ wrapper.querySelector('#v3-cost-date').onchange=e=>{if(v3CostISO(e.target.value)){v3CostReportState.date=e.target.value;v3RenderCostReport();}};
+}
 const originalReports=renderReports;
-drawer.rapports=()=>{originalReports();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Indicateurs des fiches V3 importées ; paiements V3 séparés, rapprochement comptable à confirmer.';};
+drawer.rapports=()=>{originalReports();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Indicateurs des fiches V3 importées ; paiements V3 séparés, rapprochement comptable à confirmer.';v3RenderCostReport();};
+
 drawer.historique=()=>{renderHistory();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Historique local de cette session uniquement ; journal serveur non disponible.';};
 // Connexion manuelle : aucune connexion automatique, aucune donnée sensible dans l’HTML.
 // Retour immédiat même si le navigateur rencontre un souci de chargement.
