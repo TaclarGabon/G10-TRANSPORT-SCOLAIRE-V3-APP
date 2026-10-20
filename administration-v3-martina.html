@@ -923,7 +923,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   const box=document.createElement('label');box.textContent=label;
 
   const choices=key==='busId'?[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]:
-   key==='school'&&module==='subs'?[...new Set([record.school,...subs.map(s=>s.school)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]).concat([['__other__','Autre établissement (à saisir)']]):
+   key==='school'&&module==='subs'?[...new Set([record.school,...subs.map(s=>s.school)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]).concat([['__other__','Autre établissement (à saisir)']]).reduce((all,x,i)=>i===0?[['','Choisir une école'],x]:[...all,x],[]):
    key==='plan'?['Standard','VIP','Partiel','A-R Akanda'].map(x=>[x,x]):
    key==='partialService'?[['','—'],['Matin uniquement','Matin uniquement'],['Soir uniquement','Soir uniquement']]:
    key==='subscriptionStatus'?['À confirmer','En attente de paiement','Confirmé','Avec reliquat','À vérifier'].map(x=>[x,x]):
