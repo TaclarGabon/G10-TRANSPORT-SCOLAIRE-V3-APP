@@ -1261,6 +1261,35 @@ function v3MovementForm(bus,students){
  host.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+
+/* Martina — badges individuels et planche de découpe 54 × 85 mm, références historiques inchangées. */
+async function printAllBadges(){
+ if(!authorized)return alert('Connexion requise.');
+ const valid=subs.filter(s=>/^G10-TP-SCOL-QR[0-9]+$/i.test(String(s.qrRef||'').trim()));
+ if(!valid.length)return alert('Aucun badge QR valide à imprimer.');
+ try{await loadQRLib();}catch(e){return alert('Bibliothèque QR indisponible : '+e.message);}
+ const overlay=document.createElement('div');overlay.className='v3-print-overlay';
+ overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer tous les badges / PDF</button><button type="button" data-close>Fermer</button></div><h2>G10 TRANSPORT SCOLAIRE — Planches de badges</h2><p class="small">'+valid.length+' badge(s) • Format 54 × 85 mm • 9 badges maximum par feuille A4 • Références existantes</p><div class="v3-qr-grid">'+valid.map((s,i)=>'<div class="v3-print-badge"><b>G10 TRANSPORT SCOLAIRE</b><strong>'+esc(s.name)+'</strong><small>'+esc(s.school||'')+'</small><div class="qr-cell" data-qr-slot="'+i+'"></div><small>'+esc(s.qrRef)+'</small></div>').join('')+'</div></div>';
+ overlay.querySelector('[data-close]').onclick=()=>overlay.remove();
+ overlay.querySelector('[data-print]').onclick=()=>window.print();
+ overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+ document.body.appendChild(overlay);
+ valid.forEach((s,i)=>{
+  const url=new URL('https://taclargabon.github.io/G10-TRANSPORT-SCOLAIRE-V2/qr-test.html');
+  url.searchParams.set('code',String(s.qrRef).trim());url.searchParams.set('v','4');
+  new QRCode(overlay.querySelector('[data-qr-slot="'+i+'"]'),{text:url.href,width:145,height:145,correctLevel:QRCode.CorrectLevel.H});
+ });
+}
+renderQR=function(){
+ const refs=subs.map(s=>s.qrRef).filter(Boolean);
+ p.innerHTML=header('Badges / QR élèves','Références QR existantes • Impression individuelle ou groupée • Sans modification des badges.','<button class="btn green" id="v3-print-all">Imprimer tous les QR / badges</button>')+
+ '<div class="card"><b>'+refs.length+' références présentes • '+(refs.length-new Set(refs).size)+' doublon(s)</b><p class="small">Prévisualise chaque badge avec Voir QR ; impression groupée en planches A4 avec repères de découpe.</p></div>'+
+ '<div class="v3-qr-grid">'+subs.filter(s=>s.qrRef).map(s=>{const i=subs.indexOf(s);return '<div class="v3-print-badge"><b>'+esc(s.name)+'</b><small>'+esc(s.qrRef)+'</small><small>'+esc(s.school||'')+'</small><div class="v3-print-actions" style="margin:10px 0"><button type="button" class="edit-btn" data-qr="'+i+'">Voir QR / Badge</button></div></div>';}).join('')+'</div>';
+ p.querySelector('#v3-print-all').onclick=printAllBadges;
+ p.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>openBadge(+b.dataset.qr));
+};
+drawer.qr=renderQR;
+
 drawer.abonnes=renderSubs;drawer.abonnement=renderSubscription;drawer.paiements=renderPayments;
 drawer.circuit=()=>renderCircuit(currentCircuitBus,currentCircuitPhase);drawer.mouvements=renderMovements;drawer.chauffeurs=renderDrivers;drawer.staff=renderStaff;drawer.depenses=renderExpenses;
 const originalReports=renderReports;
