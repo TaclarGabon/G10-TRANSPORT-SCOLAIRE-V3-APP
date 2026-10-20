@@ -931,7 +931,9 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
    key==='plan'?['Standard','VIP','Partiel','A-R Akanda'].map(x=>[x,x]):
    key==='partialService'?[['','—'],['Matin uniquement','Matin uniquement'],['Soir uniquement','Soir uniquement']]:
    key==='subscriptionStatus'?['À confirmer','En attente de paiement','Confirmé','Avec reliquat','À vérifier'].map(x=>[x,x]):
-   key==='discountPct'?['0','10','50'].map(x=>[x,x+' %']):null;
+   key==='discountPct'?['0','10','50'].map(x=>[x,x+' %']):
+   key==='type'&&module==='expenses'?[...new Set(['Carburant','Lavage','Frais de pause','Dépannage',...expense.map(x=>x.type),record.type].filter(Boolean))].map(x=>[x,x]):
+   key==='status'&&module==='expenses'?[...new Set(['À vérifier','Validée','Confirmée',...expense.map(x=>x.status),record.status].filter(Boolean))].map(x=>[x,x]):null;
   const input=document.createElement(choices?'select':'input');input.name=key;
   if(choices){for(const [value,label] of choices){const option=document.createElement('option');option.value=value;option.textContent=label;input.appendChild(option);}}
   else{input.type=type||'text';if(type==='number'){input.min='0';input.step='1';}}
@@ -1101,13 +1103,57 @@ renderStaff=function(){
  p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>editForm('staff',staff[+b.dataset.staff],staffFields,b.closest('tr')));
  p.querySelectorAll('[data-archive-staff]').forEach(b=>b.onclick=async()=>{const r=staff[+b.dataset.archiveStaff];if(!confirm('Désactiver '+r.name+' dans V3 ?'))return;try{await saveRecord('staff',{...r,active:false,v3Archived:true},copy(r));}catch(e){alert(formatError(e));}});
 };
-const expenseFields=[['date','Date','date'],['type','Nature'],['busId','Bus (BUS-1/2/3)'],['vendor','Fournisseur / station'],['invoiceNumber','Numéro facture'],['km','Kilométrage','number'],['litres','Litres','number'],['amount','Montant FCFA','number'],['declaredBy','Déclaré par'],['status','Statut'],['note','Observation']];
+
+const v3ExpenseFilters={date:'',type:'',bus:'',vendor:'',status:''};
+function v3ExpenseValue(e,key){
+ if(key==='date')return String(e.date||'');
+ if(key==='type')return String(e.type||'');
+ if(key==='bus')return String(e.busId||e.bus||'');
+ if(key==='vendor')return String(e.vendor||e.supplier||'');
+ if(key==='status')return String(e.status||'');
+ return '';
+}
+function v3ExpenseFilterSpecs(){
+ const options=(key)=>[...new Set(expense.filter(e=>!e.v3Archived).map(e=>v3ExpenseValue(e,key)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]);
+ return [['date','Date',options('date')],['type','Nature',options('type')],['bus','Bus',v3BusOptions],['vendor','Fournisseur',options('vendor')],['status','Statut',options('status')]];
+}
+function v3ExpenseSelect(key){
+ const spec=v3ExpenseFilterSpecs().find(x=>x[0]===key);
+ return '<select data-v3-exp-filter="'+key+'" aria-label="Filtrer '+esc(spec[1])+'" class="v3-header-select"><option value="">Tous</option>'+
+ spec[2].map(([v,label])=>'<option value="'+esc(v)+'"'+(v3ExpenseFilters[key]===v?' selected':'')+'>'+esc(label)+'</option>').join('')+'</select>';
+}
+function v3ExpenseHeader(key,title){return '<span class="v3-th-filter">'+esc(title)+v3ExpenseSelect(key)+'</span>';}
+function v3ExpenseFilterBar(){
+ return '<div class="v3-filter-bar"><span class="small">Filtres des dépenses — sélectionne une nature, un bus ou un autre critère.</span>'+
+ '<button type="button" class="edit-btn" id="v3-reset-expenses">Effacer les filtres</button>'+
+ '<span class="v3-filter-count" id="v3-exp-count" role="status"></span></div>';
+}
+function v3AttachExpenseFilters(){
+ const apply=()=>{
+  let count=0;
+  p.querySelectorAll('tbody tr[data-v3-exp-id]').forEach(row=>{
+   const item=expense.find(e=>String(e.id)===row.dataset.v3ExpId);
+   const visible=!!item&&Object.entries(v3ExpenseFilters).every(([key,value])=>!value||v3ExpenseValue(item,key)===value);
+   row.hidden=!visible;row.style.display=visible?'':'none';if(visible)count++;
+  });
+  const c=p.querySelector('#v3-exp-count');if(c)c.textContent=count+' dépense(s) affichée(s)';
+ };
+ p.querySelectorAll('[data-v3-exp-filter]').forEach(el=>el.onchange=()=>{
+  v3ExpenseFilters[el.dataset.v3ExpFilter]=el.value;
+  p.querySelectorAll('.v3-editrow').forEach(x=>x.remove());apply();
+ });
+ const reset=p.querySelector('#v3-reset-expenses');
+ if(reset)reset.onclick=()=>{Object.keys(v3ExpenseFilters).forEach(k=>v3ExpenseFilters[k]='');p.querySelectorAll('[data-v3-exp-filter]').forEach(x=>x.value='');p.querySelectorAll('.v3-editrow').forEach(x=>x.remove());apply();};
+ apply();
+}
+const expenseFields=[['date','Date','date'],['type','Nature'],['busId','Bus affecté'],['vendor','Fournisseur / station'],['invoiceNumber','Numéro facture'],['km','Kilométrage','number'],['litres','Litres','number'],['amount','Montant FCFA','number'],['declaredBy','Déclaré par'],['status','Statut'],['note','Observation']];
 renderExpenses=function(){
  const v=sums(),active=expense.map((e,i)=>({...e,_index:i})).filter(e=>!e.v3Archived);
  const cell=e=>[esc(e.date),esc(e.type),esc(e.busId||e.bus||'—'),esc(e.vendor||e.supplier||'—'),esc(e.invoiceNumber||e.bill||'—'),esc(e.km??e.odometer??'—')+' km / '+esc(e.litres??'—')+' L',esc(e.declaredBy||e.enteredBy||e.submittedBy||e.createdBy||'—'),cash(e.amount),esc(e.status||'—')];
  p.innerHTML=header('Dépenses — véhicules','Saisies administratives, chauffeur et gestion. Les fiches archivées restent dans Firebase et les rapports.','<button class="btn green" id="addExpense">+ Ajouter une dépense</button>')+
  '<div class="report-stats"><div class="report-stat green-outline"><div class="small">Validées (archives comprises)</div><strong>'+cash(v.valid)+'</strong></div><div class="report-stat yellow-outline"><div class="small">À vérifier</div><strong>'+cash(v.wait)+'</strong></div></div>'+
- table(['Date','Nature','Bus','Fournisseur','Facture','Km / Litres','Saisi par','Montant','Statut','Actions'],active.map(e=>'<tr>'+cell(e).map(x=>'<td>'+x+'</td>').join('')+'<td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10">Aucune dépense active. Les fiches archivées sont dans Historique.</td></tr>');
+ v3ExpenseFilterBar()+table([v3ExpenseHeader('date','Date'),v3ExpenseHeader('type','Nature'),v3ExpenseHeader('bus','Bus'),v3ExpenseHeader('vendor','Fournisseur'),'Facture','Km / Litres','Saisi par','Montant',v3ExpenseHeader('status','Statut'),'Actions'],active.map(e=>'<tr data-v3-exp-id="'+esc(e.id)+'">'+cell(e).map(x=>'<td>'+x+'</td>').join('')+'<td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10">Aucune dépense active. Les fiches archivées sont dans Historique.</td></tr>');
+ v3AttachExpenseFilters();
  p.querySelector('#addExpense').onclick=()=>rowNew('expenses',expenseFields,{status:'À vérifier',amount:0,busId:'BUS-1'});
  p.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>editForm('expenses',expense[+b.dataset.exp],expenseFields,b.closest('tr')));
  p.querySelectorAll('[data-exp-archive]').forEach(b=>b.onclick=async()=>{const e=expense[+b.dataset.expArchive];if(!confirm('Retirer cette dépense de la page active et la conserver dans Historique et Rapports ?'))return;try{await saveRecord('expenses',{...e,v3Archived:true},copy(e));}catch(err){alert(formatError(err));}});
