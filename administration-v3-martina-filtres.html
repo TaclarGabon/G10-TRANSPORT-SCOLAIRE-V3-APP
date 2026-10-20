@@ -1344,7 +1344,7 @@ renderCircuit=function(bus=currentCircuitBus,phase=currentCircuitPhase){
     if(server!==newBus)throw Error('La relecture du bus ne correspond pas au choix. Contacte la Direction avant de recommencer.');
     v3CircuitStatus('Transfert de '+student.name+' vers '+v3BusNames[newBus]+' confirmé par Firebase V3. Pour les scans, la Direction doit actualiser la liste des badges dans le module Logistique.');
    }catch(err){
-    const current=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val().catch(()=>null);
+    let current=null;try{current=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val();}catch(_){}
     if(current===newBus)v3CircuitStatus('Changement de bus enregistré dans V3. La vérification finale du scanner reste à faire.');
     else{el.value=before.busId;el.disabled=false;v3CircuitStatus('Affectation refusée : '+formatError(err),true);}
    }
