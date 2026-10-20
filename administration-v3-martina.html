@@ -150,6 +150,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
  .v3-print-badge{width:54mm;height:85mm;min-height:85mm;break-inside:avoid;page-break-inside:avoid}
  .v3-print-badge .qr-cell img,.v3-print-badge .qr-cell canvas{width:39mm!important;height:39mm!important}
  .v3-receipt{margin:10mm}
+ .v3-print-sheet>h2,.v3-print-sheet>p{display:none!important}
 }
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — Liste des abonnés</div></div><div><button type="button" onclick="document.querySelector('#tabs [data-tab=abonnes]')?.click()">Accueil</button></div></div>
@@ -756,7 +757,7 @@ gate.innerHTML='<h2>Administration / Direction</h2>'+
  '<form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
  '<input type="email" id="v3-email" required autocomplete="username" placeholder="Email Firebase" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px">'+
  '<input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe Firebase" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px">'+
- '<button type="submit" class="btn green" id="v3-connect">Se connecter et charger la V3</button></form>'+ 
+ '<button type="submit" class="btn green" id="v3-connect">Se connecter</button></form>'+ 
  '<div id="v3-auth-status" role="status" aria-live="polite" style="padding:8px 0;color:#123d78"></div>'+ 
  '<button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser depuis Firebase V3</button> '+
  '<button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button>';
