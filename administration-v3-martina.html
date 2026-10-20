@@ -152,8 +152,17 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
  .v3-receipt{margin:10mm}
  .v3-print-sheet>h2,.v3-print-sheet>p{display:none!important}
 }
+[hidden]{display:none!important}
+.v3-month-filter{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0;padding:10px;background:#f3f8ff;border:1px solid #d8e6f4;border-radius:12px}
+.v3-month-filter button{background:#fff;border:1px solid #c7d8ea;border-radius:999px;color:#1a4974;padding:9px 12px;font-size:12px;font-weight:800;cursor:pointer;min-width:84px}
+.v3-month-filter button .count{font-size:10px;display:block;opacity:.7;font-weight:650;margin-top:3px}
+.v3-month-filter button.has-record{border-color:#96d6b4;background:#ecfaf2}
+.v3-month-filter button.on{background:#1264b7;color:white;border-color:#1264b7}
+.v3-month-filter button:focus-visible{outline:3px solid #f5b942;outline-offset:2px}
+.v3-month-filter-note{color:#506e8a;font-size:12px;margin:2px 0 14px}
 </style></head><body>
-<div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — Liste des abonnés</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
+<div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
+<section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div id="v3-auth-status" role="status" aria-live="polite" style="padding:8px 0;color:#123d78">Connexion sécurisée à l’administration.</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
 <nav class="top" id="tabs" style="display:none">
 <button class="on" data-tab="abonnes">Abonnés</button>
 <button data-tab="abonnement">Abonnement</button>
@@ -483,9 +492,9 @@ function showAvis(){
 }
 document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-tab]');if(!b)return;document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b)});if(document.getElementById('paymentRows'))capturePaymentDemo();if(b.dataset.tab==='abonnes')document.getElementById('panel').innerHTML=abonnesMarkup;else if(b.dataset.tab==='abonnement')showAbonnement();else if(b.dataset.tab==='paiements')showPaiements();else if(b.dataset.tab==='circuit')drawCircuit();else if(b.dataset.tab==='rapports')showRapports();else if(b.dataset.tab==='chauffeurs')showChauffeurs();else if(b.dataset.tab==='staff')showStaff();else if(b.dataset.tab==='depenses')showDepenses();else if(b.dataset.tab==='qr')showQrAudit();else if(b.dataset.tab==='astuce')showAstuce();else if(b.dataset.tab==='reclamations')showAvis();else document.getElementById('panel').innerHTML='<div class="card"><h2>'+b.textContent+'</h2><p>Rubrique en attente de validation. Les données de Martina ne sont pas modifiées.</p></div>'});
 </script><script type="application/json" id="v3-qr-assets">{}</script><script type="application/json" id="g10-real-snapshot">{"subs":[],"vehicleExpenses":[],"drivers":[],"staff":[]}</script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js" defer></script>
 <script>
 /* G10 V3 — préparation de copie V2 -> V3 ; fonctions pures, aucune connexion réseau. */
 (function (root) {
@@ -751,17 +760,7 @@ const READ_ROLES=ROOT+'/roles/';
 let authorized=false, activeRole='', signedUser=null, saveBusy=false;
 const tabs=document.getElementById('tabs');
 const statusBar=document.getElementById('v3-changes');
-const gate=document.createElement('section');gate.className='card';gate.id='v3-v3-connection';
-gate.innerHTML='<h2>Administration</h2>'+ 
- '<p>Connecte-toi pour accéder à ton espace de travail G10 Transport Scolaire.</p>'+ 
- '<form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
- '<input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px">'+
- '<input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px">'+
- '<button type="submit" class="btn green" id="v3-connect">Se connecter</button></form>'+ 
- '<div id="v3-auth-status" role="status" aria-live="polite" style="padding:8px 0;color:#123d78"></div>'+ 
- '<button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser depuis Firebase V3</button> '+
- '<button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button>';
-bar.after(gate);
+const gate=document.getElementById('v3-v3-connection');
 const authStatus=gate.querySelector('#v3-auth-status');
 function message(t){authStatus.textContent=t;}
 function initFirebase(){
@@ -983,6 +982,15 @@ function paymentForm(record=null){
 }
 renderPayments=function(){
  const received=sums().received;
+ const monthOf=x=>String(x?.paymentMonth||x?.paymentV147?.monthKey||'').trim();
+ const today=new Date(),schoolYear=today.getUTCMonth()<8?today.getUTCFullYear()-1:today.getUTCFullYear();
+ const monthKeys=Array.from({length:12},(_,i)=>new Date(Date.UTC(schoolYear,8+i,1)).toISOString().slice(0,7));
+ const monthLabel=k=>new Intl.DateTimeFormat('fr-FR',{month:'short',year:'2-digit',timeZone:'UTC'}).format(new Date(k+'-01T12:00:00Z'));
+ const monthCounts=k=>subs.filter(x=>monthOf(x)===k).length+payments.filter(x=>String(x.month||'')===k).length;
+ const monthBubbles='<div class="v3-month-filter" role="group" aria-label="Consulter les paiements par mois">'+
+ '<button type="button" class="on" data-month-filter="all">Tous les mois<span class="count">Vue générale</span></button>'+
+ monthKeys.map(k=>'<button type="button" data-month-filter="'+k+'" class="'+(monthCounts(k)?'has-record':'')+'">'+monthLabel(k)+'<span class="count">'+monthCounts(k)+' fiche(s)</span></button>').join('')+'</div>'+
+ '<div class="v3-month-filter-note" id="v3-month-filter-note">Choisis un mois pour consulter les fiches correspondantes. Les mois sans paiement renseigné ne sont pas considérés comme payés.</div>';
  const declared=subs.filter(s=>moneyNum(s.amountReceived)>0).length;
  const badge=(text,kind='')=>'<span class="v3-payment-pill '+kind+'">'+esc(text||'—')+'</span>';
  const payStatus=s=>String(s.payment||'').trim()||'Non renseigné';
@@ -994,14 +1002,15 @@ renderPayments=function(){
  const modeMenu=(value,index)=>{const modes=['—','Espèces','Mobile Money','Virement','Chèque','Autre'];if(!modes.includes(value))modes.push(value);return '<select class="v3-payment-method" data-legacy-edit="'+index+'" data-legacy-field="paymentMethod" aria-label="Mode de paiement">'+modes.map(x=>'<option value="'+esc(x==='—'?'':x)+'"'+(x===value?' selected':'')+'>'+esc(x)+'</option>').join('')+'</select>';};
  const sourceRows=subs.map((s,i)=>{
   const amount=moneyNum(s.amountReceived),status=payStatus(s),paid=/^(pay[ée]|sold[ée]|confirm)/i.test(status)&&amount>0;
-  return '<tr data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+calendar(labelDate(s),'date','paymentDate',i)+'</td><td>'+calendar(labelMonth(s),'month','paymentMonth',i)+'</td><td class="v3-payment-amount">'+cash(amount)+'</td><td>'+modeMenu(labelMethod(s),i)+'</td><td>'+badge(status,statusKind(status))+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button>'+(paid?' <button type="button" class="edit-btn" data-legacy-receipt="'+i+'">Justificatif</button>':'')+'</td></tr>';
+  return '<tr data-month-key="'+esc(monthOf(s))+'" data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+calendar(labelDate(s),'date','paymentDate',i)+'</td><td>'+calendar(labelMonth(s),'month','paymentMonth',i)+'</td><td class="v3-payment-amount">'+cash(amount)+'</td><td>'+modeMenu(labelMethod(s),i)+'</td><td>'+badge(status,statusKind(status))+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button>'+(paid?' <button type="button" class="edit-btn" data-legacy-receipt="'+i+'">Justificatif</button>':'')+'</td></tr>';
  }).join('');
  const transactionRows=payments.map((pay,i)=>{
   const student=subs.find(s=>String(s.id)===String(pay.studentId));
   const name=student?.name||'Élève non retrouvé';
-  return '<tr><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button> '+(/^(pay[ée]|sold[ée]|confirm)/i.test(String(pay.status||''))?'<button class="edit-btn" data-v3-receipt="'+i+'">Reçu / Imprimer</button>':'')+'</td></tr>';
+  return '<tr data-month-key="'+esc(String(pay.month||''))+'" data-transaction-month="true"><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button> '+(/^(pay[ée]|sold[ée]|confirm)/i.test(String(pay.status||''))?'<button class="edit-btn" data-v3-receipt="'+i+'">Reçu / Imprimer</button>':'')+'</td></tr>';
  }).join('')||'<tr><td colspan="7" class="v3-payment-empty">Aucune transaction V3 distincte enregistrée. Le cumul historique ci-dessus ne constitue pas une liste de reçus individuels.</td></tr>';
  p.innerHTML=header('Paiements — tous les axes','Suivi des fiches importées et transactions V3 distinctes, sans double comptage.','<button class="btn green" id="addPayment">+ Ajouter un paiement</button>')+
+ monthBubbles+
  '<div class="v3-payment-kpis">'+
  '<div class="v3-payment-kpi primary"><div class="small">Cumul déclaré sur les fiches importées</div><strong>'+cash(received)+'</strong></div>'+
  '<div class="v3-payment-kpi secondary"><div class="small">Fiches avec montant déclaré</div><strong>'+declared+' / '+subs.length+'</strong></div>'+
@@ -1011,6 +1020,13 @@ renderPayments=function(){
  table(['Élève','Date','Mois','Montant déclaré','Mode','Statut','Action'],sourceRows||'<tr><td colspan="7" class="v3-payment-empty">Aucune fiche élève disponible dans la V3.</td></tr>','payments-table')+
  '<div class="v3-payment-section"><h3>Transactions enregistrées séparément dans la V3</h3><span class="small">'+payments.length+' transaction(s) distincte(s) — sans reconstitution automatique</span></div>'+
  table(['Élève','Date','Mois','Montant','Mode','Statut','Action'],transactionRows,'payments-table');
+ p.querySelectorAll('[data-month-filter]').forEach(button=>button.onclick=()=>{
+  const key=button.dataset.monthFilter;
+  p.querySelectorAll('[data-month-filter]').forEach(b=>b.classList.toggle('on',b===button));
+  p.querySelectorAll('[data-payment-filter]').forEach(b=>b.classList.toggle('on',b.dataset.paymentFilter==='all'));
+  p.querySelectorAll('tr[data-month-key]').forEach(row=>{row.hidden=key!=='all'&&row.dataset.monthKey!==key;const detail=row.nextElementSibling;if(detail?.classList.contains('v3-payment-details'))detail.hidden=row.hidden;});
+  p.querySelector('#v3-month-filter-note').textContent=key==='all'?'Vue générale : toutes les fiches disponibles.':monthCounts(key)+' fiche(s) ou transaction(s) renseignée(s) pour '+monthLabel(key)+'. Les mois sans information ne sont pas considérés comme payés.';
+ });
  p.querySelector('#addPayment').onclick=()=>paymentForm();
  p.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>paymentForm(payments[+b.dataset.pay]));
  p.querySelectorAll('[data-v3-receipt]').forEach(b=>b.onclick=()=>printPaymentReceipt(payments[+b.dataset.v3Receipt],false));
@@ -1020,7 +1036,8 @@ renderPayments=function(){
   const selected=button.dataset.paymentFilter;
   p.querySelectorAll('[data-payment-filter]').forEach(x=>x.classList.toggle('on',x===button));
   p.querySelectorAll('tr[data-historical-payment]').forEach(row=>{
-   row.hidden=selected!=='all'&&row.dataset.historicalPayment!==selected;
+   const activeMonth=p.querySelector('[data-month-filter].on')?.dataset.monthFilter||'all';
+   row.hidden=(selected!=='all'&&row.dataset.historicalPayment!==selected)||(activeMonth!=='all'&&row.dataset.monthKey!==activeMonth);
    const detail=row.nextElementSibling;
    if(detail?.classList.contains('v3-payment-details'))detail.hidden=row.hidden||row.querySelector('[data-payment-details]')?.getAttribute('aria-expanded')!=='true';
   });
