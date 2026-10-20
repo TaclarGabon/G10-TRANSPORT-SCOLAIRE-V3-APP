@@ -165,6 +165,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-filter-bar select{min-width:175px;max-width:min(320px,85vw);padding:10px;border-radius:8px;border:1px solid #bed2e7;background:white;color:#123d78;font-weight:600}
 .v3-filter-count{font-size:12px;color:#355e80;margin-left:auto}
 .v3-circuit-bus.v3-pending{outline:2px solid #efb546;background:#fff9e8}
+.exp-analysis-note{background:#f1f7ff;border:1px solid #c9ddeb;border-radius:10px;padding:12px;margin:10px 0;color:#254965;line-height:1.5}.exp-analysis-controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px;background:#fff;border:1px solid #dce6f0;border-radius:12px;padding:12px;margin:10px 0}.exp-analysis-controls label{display:grid;gap:5px;color:#123d78;font-size:11px;font-weight:850}.exp-analysis-controls select,.exp-analysis-controls input{padding:9px;border:1px solid #bed2e7;border-radius:8px;background:#fff;color:#123d78;min-width:145px}.exp-analysis-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:10px 0}.exp-analysis-kpi{background:#fff;border:1px solid #dce6f0;border-radius:11px;padding:13px;min-width:0}.exp-analysis-kpi strong{display:block;color:#123d78;font-size:clamp(15px,1.6vw,23px);margin-top:6px;overflow-wrap:anywhere}.exp-analysis-kpi .small{font-size:11px}.exp-analysis-table{width:100%;border-collapse:collapse;min-width:660px}.exp-analysis-table th,.exp-analysis-table td{padding:10px;border-bottom:1px solid #e4edf4;text-align:left}.exp-analysis-table th{background:#eaf2fa;color:#16416b}.exp-analysis-track{height:9px;min-width:120px;border-radius:20px;background:#e8eff6;overflow:hidden}.exp-analysis-fill{height:100%;background:#176fd1;border-radius:20px}.personnel-qr-note{background:#f1f7ff;border:1px solid #c9ddeb;padding:10px 12px;border-radius:9px;margin:9px 0;color:#254965;line-height:1.45}@media(max-width:760px){.exp-analysis-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.exp-analysis-controls{align-items:stretch}.exp-analysis-controls label{flex:1 1 145px}}
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div style="margin:8px 0 4px"><button id="v3-reset-password" type="button" style="border:0;background:none;color:#1765b5;text-decoration:underline;cursor:pointer;padding:5px 0;font-weight:700">Définir ou réinitialiser mon mot de passe V3</button></div><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><div style="color:#61778d;font-size:11px;margin-top:5px" id="g10-build-label">Administration G10 — édition 20 octobre, connexion vérifiable</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
@@ -200,6 +201,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 <button data-tab="chauffeurs">Chauffeurs</button>
 <button data-tab="staff">Staff</button>
 <button data-tab="depenses">Dépenses</button>
+<button data-tab="analyse-depenses">Analyse dépenses</button>
 <button data-tab="qr">Voir tous les QR codes</button>
 <button data-tab="astuce">Astuce intelligente</button>
 <button data-tab="reclamations">Avis & réclamations</button>
@@ -1031,20 +1033,24 @@ renderSubscription=function(){
 };
 const driverFields=[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus (BUS-1/2/3)'],['plate','Immatriculation']];
 renderDrivers=function(){
- p.innerHTML=header('Chauffeurs — tous les axes','Fiches Firebase V3, indépendantes de la V2.','<button class="btn green" id="addDriver">+ Ajouter un chauffeur</button>')+
- table(['Nom','Téléphone','Zone','Bus affecté','Plaque','Actions'],roles.map((d,i)=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.phone)+'</td><td>'+esc(d.zone)+'</td><td>'+esc(d.busId||'—')+'</td><td>'+esc(d.plate)+'</td><td><button class="edit-btn" data-driver="'+i+'">Modifier</button> <button class="clean-btn" data-archive-driver="'+i+'">Désactiver</button></td></tr>').join(''));
- p.querySelector('#addDriver').onclick=()=>rowNew('drivers',driverFields,{active:true,zone:'Akanda',busId:'BUS-1'});
- p.querySelectorAll('[data-driver]').forEach(b=>b.onclick=()=>editForm('drivers',roles[+b.dataset.driver],driverFields,b.closest('tr')));
- p.querySelectorAll('[data-archive-driver]').forEach(b=>b.onclick=async()=>{const r=roles[+b.dataset.archiveDriver];if(!confirm('Désactiver '+r.name+' dans V3 ?'))return;try{await saveRecord('drivers',{...r,active:false,v3Archived:true},copy(r));}catch(e){alert(formatError(e));}});
-};
+  p.innerHTML=header('Chauffeurs — tous les axes','Fiches Firebase V3, indépendantes de la V2.','<button class="btn green" id="addDriver">+ Ajouter un chauffeur</button> <button class="edit-btn" type="button" data-print-personnel="drivers">Imprimer les QR des chauffeurs</button>')+
+  '<div class="personnel-qr-note">Les QR imprimés identifient le chauffeur par son identifiant V3. Ils ne déclenchent pas encore de scan de présence ou de mouvement.</div>'+
+  table(['Nom','Téléphone','Zone','Bus affecté','Plaque','QR','Actions'],roles.map((d,i)=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.phone)+'</td><td>'+esc(d.zone)+'</td><td>'+esc(d.busId||'—')+'</td><td>'+esc(d.plate)+'</td><td><button class="v3-light-qr" type="button" data-personnel-qr="drivers" data-personnel-index="'+i+'">Voir QR</button></td><td><button class="edit-btn" data-driver="'+i+'">Modifier</button> <button class="clean-btn" data-archive-driver="'+i+'">Désactiver</button></td></tr>').join(''));
+  p.querySelector('#addDriver').onclick=()=>rowNew('drivers',driverFields,{active:true,zone:'Akanda',busId:'BUS-1'});
+  p.querySelectorAll('[data-driver]').forEach(b=>b.onclick=()=>editForm('drivers',roles[+b.dataset.driver],driverFields,b.closest('tr')));
+  p.querySelectorAll('[data-archive-driver]').forEach(b=>b.onclick=async()=>{const r=roles[+b.dataset.archiveDriver];if(!confirm('Désactiver '+r.name+' dans V3 ?'))return;try{await saveRecord('drivers',{...r,active:false,v3Archived:true},copy(r));}catch(e){alert(formatError(e));}});
+  bindPersonnelQrButtons();
+ };
 const staffFields=[['name','Nom complet'],['department','Département'],['phone','Téléphone']];
 renderStaff=function(){
- p.innerHTML=header('Staff — départements','Fiches Firebase V3, indépendantes de la V2.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button>')+
- table(['Nom','Département','Téléphone','Actions'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td><button class="edit-btn" data-staff="'+i+'">Modifier</button> <button class="clean-btn" data-archive-staff="'+i+'">Désactiver</button></td></tr>').join(''));
- p.querySelector('#addStaff').onclick=()=>rowNew('staff',staffFields,{active:true});
- p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>editForm('staff',staff[+b.dataset.staff],staffFields,b.closest('tr')));
- p.querySelectorAll('[data-archive-staff]').forEach(b=>b.onclick=async()=>{const r=staff[+b.dataset.archiveStaff];if(!confirm('Désactiver '+r.name+' dans V3 ?'))return;try{await saveRecord('staff',{...r,active:false,v3Archived:true},copy(r));}catch(e){alert(formatError(e));}});
-};
+  p.innerHTML=header('Staff — départements','Fiches Firebase V3, indépendantes de la V2.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button> <button class="edit-btn" type="button" data-print-personnel="staff">Imprimer les QR du personnel</button>')+
+  '<div class="personnel-qr-note">Les QR imprimés identifient chaque membre par son identifiant V3. Ils ne déclenchent pas encore de scan de présence ou de mouvement.</div>'+
+  table(['Nom','Département','Téléphone','QR','Actions'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td><button class="v3-light-qr" type="button" data-personnel-qr="staff" data-personnel-index="'+i+'">Voir QR</button></td><td><button class="edit-btn" data-staff="'+i+'">Modifier</button> <button class="clean-btn" data-archive-staff="'+i+'">Désactiver</button></td></tr>').join(''));
+  p.querySelector('#addStaff').onclick=()=>rowNew('staff',staffFields,{active:true});
+  p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>editForm('staff',staff[+b.dataset.staff],staffFields,b.closest('tr')));
+  p.querySelectorAll('[data-archive-staff]').forEach(b=>b.onclick=async()=>{const r=staff[+b.dataset.archiveStaff];if(!confirm('Désactiver '+r.name+' dans V3 ?'))return;try{await saveRecord('staff',{...r,active:false,v3Archived:true},copy(r));}catch(e){alert(formatError(e));}});
+  bindPersonnelQrButtons();
+ };
 const expenseFields=[['date','Date','date'],['type','Nature'],['busId','Bus (BUS-1/2/3)'],['vendor','Fournisseur / station'],['invoiceNumber','Numéro facture'],['km','Kilométrage','number'],['litres','Litres','number'],['amount','Montant FCFA','number'],['declaredBy','Déclaré par'],['status','Statut'],['note','Observation']];
 renderExpenses=function(){
  const v=sums(),active=expense.map((e,i)=>({...e,_index:i})).filter(e=>!e.v3Archived);
@@ -1442,6 +1448,52 @@ drawer.circuit=()=>renderCircuit(currentCircuitBus,currentCircuitPhase);drawer.m
 const originalReports=renderReports;
 drawer.rapports=()=>{originalReports();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Indicateurs des fiches V3 importées ; paiements V3 séparés, rapprochement comptable à confirmer.';};
 drawer.historique=()=>{renderHistory();const desc=p.querySelector('.card.head .small');if(desc)desc.textContent='Historique local de cette session uniquement ; journal serveur non disponible.';};
+drawer['analyse-depenses']=renderExpenseAnalysis;
+
+let expenseAnalysisPeriod='month',expenseAnalysisBus='all',expenseAnalysisFrom='',expenseAnalysisTo='';
+function v3ReportDate(d){return /^\d{4}-\d{2}-\d{2}$/.test(String(d||''))?String(d):'';}
+function v3ReportRange(mode,today){
+ const y=Number(today.slice(0,4)),m=Number(today.slice(5,7)),day=Number(today.slice(8,10)),iso=x=>x.toISOString().slice(0,10),current=new Date(Date.UTC(y,m-1,day,12));
+ if(mode==='week'){const start=new Date(current);start.setUTCDate(start.getUTCDate()-((start.getUTCDay()+6)%7));const end=new Date(start);end.setUTCDate(end.getUTCDate()+6);return [iso(start),iso(end)];}
+ if(mode==='fortnight'){const start=new Date(Date.UTC(y,m-1,day<=15?1:16,12)),end=day<=15?new Date(Date.UTC(y,m-1,15,12)):new Date(Date.UTC(y,m,0,12));return [iso(start),iso(end)];}
+ return [today.slice(0,8)+'01',new Date(Date.UTC(y,m,0,12)).toISOString().slice(0,10)];
+}
+function renderExpenseAnalysis(){
+ const today=v3GabonDay(),range=expenseAnalysisPeriod==='custom'?[expenseAnalysisFrom||today,expenseAnalysisTo||today]:v3ReportRange(expenseAnalysisPeriod,today),[from,to]=range,hasBadRange=from>to;
+ const rows=expense.map(e=>({record:e,date:v3ReportDate(e.date||e.expenseDate||e.day),bus:String(e.busId||e.bus||e.vehicleId||'Non attribué'),amount:moneyNum(e.amount),status:expState(e)})),missingDate=rows.filter(x=>!x.date).length;
+ const filtered=hasBadRange?[]:rows.filter(x=>x.date>=from&&x.date<=to&&(expenseAnalysisBus==='all'||x.bus===expenseAnalysisBus));
+ const buses=[...new Set([...Object.keys(v3BusNames||{}),...filtered.map(x=>x.bus)])],groups=buses.map(bus=>{const a=filtered.filter(x=>x.bus===bus),valid=a.filter(x=>/valid|confirm|paid|payé|régl/.test(x.status)).reduce((n,x)=>n+x.amount,0),wait=a.filter(x=>/attente|vérifier|review|pending/.test(x.status)).reduce((n,x)=>n+x.amount,0),total=a.reduce((n,x)=>n+x.amount,0);return {bus,total,valid,wait,count:a.length}}).filter(x=>x.count).sort((a,b)=>b.total-a.total);
+ const total=filtered.reduce((n,x)=>n+x.amount,0),valid=filtered.filter(x=>/valid|confirm|paid|payé|régl/.test(x.status)).reduce((n,x)=>n+x.amount,0),wait=filtered.filter(x=>/attente|vérifier|review|pending/.test(x.status)).reduce((n,x)=>n+x.amount,0),max=Math.max(1,...groups.map(x=>x.total));
+ const busOptions=[...new Set([...Object.keys(v3BusNames||{}),...rows.map(x=>x.bus)])],label=id=>(v3BusNames&&v3BusNames[id])||id,modeLabel={week:'Semaine en cours',fortnight:'Quinzaine en cours',month:'Mois en cours',custom:'Période personnalisée'}[expenseAnalysisPeriod];
+ p.innerHTML=header('Analyse des dépenses par bus','Comparaison selon le bus et la période. Lecture seule : aucune fiche n’est modifiée.')+
+ '<div class="exp-analysis-note"><b>Données chargées depuis Firebase V3.</b> Les dépenses archivées et tous les statuts sont inclus. Sans date ('+missingDate+'), une dépense ne peut pas être rattachée à une période. Les montants validés et à vérifier sont séparés.</div>'+
+ '<div class="exp-analysis-controls"><label>Période<select id="expense-analysis-period"><option value="week">Semaine en cours</option><option value="fortnight">Quinzaine en cours (1–15 ou 16–fin)</option><option value="month">Mois en cours</option><option value="custom">Dates personnalisées</option></select></label><label>Bus<select id="expense-analysis-bus"><option value="all">Tous les bus</option>'+busOptions.map(x=>'<option value="'+esc(x)+'">'+esc(label(x))+'</option>').join('')+'</select></label><label class="expense-analysis-custom">Du<input id="expense-analysis-from" type="date" value="'+esc(expenseAnalysisFrom||from)+'"></label><label class="expense-analysis-custom">Au<input id="expense-analysis-to" type="date" value="'+esc(expenseAnalysisTo||to)+'"></label><span class="small"><b>'+esc(modeLabel)+'</b> · '+esc(from)+' → '+esc(to)+'</span></div>'+
+ (hasBadRange?'<div class="card" role="alert">La date de début doit précéder la date de fin.</div>':'')+
+ '<div class="exp-analysis-kpis"><div class="exp-analysis-kpi"><span class="small">Total déclaré</span><strong>'+cash(total)+'</strong></div><div class="exp-analysis-kpi"><span class="small">Validé / confirmé</span><strong>'+cash(valid)+'</strong></div><div class="exp-analysis-kpi"><span class="small">À vérifier</span><strong>'+cash(wait)+'</strong></div><div class="exp-analysis-kpi"><span class="small">Bus le plus dépensier</span><strong>'+esc(groups.length?label(groups[0].bus):'—')+'</strong></div></div>'+
+ '<div class="card"><h3>Comparaison par bus</h3><div class="master-wrap"><table class="exp-analysis-table"><thead><tr><th>Bus</th><th>Nombre</th><th>Validées</th><th>À vérifier</th><th>Total déclaré</th><th>Part du total</th><th>Comparaison</th></tr></thead><tbody>'+
+ (groups.map(g=>'<tr><td><b>'+esc(label(g.bus))+'</b></td><td>'+g.count+'</td><td>'+cash(g.valid)+'</td><td>'+cash(g.wait)+'</td><td><b>'+cash(g.total)+'</b></td><td>'+(total?Math.round(g.total/total*100):0)+' %</td><td><div class="exp-analysis-track" aria-label="'+Math.round(g.total/max*100)+' %"><div class="exp-analysis-fill" style="width:'+Math.round(g.total/max*100)+'%"></div></div></td></tr>').join('')||'<tr><td colspan="7">Aucune dépense datée pour cette période et ce bus.</td></tr>')+'</tbody></table></div></div>'+
+ '<div class="card"><h3>Dépenses prises en compte ('+filtered.length+')</h3><div class="master-wrap"><table class="exp-analysis-table"><thead><tr><th>Date</th><th>Bus</th><th>Nature</th><th>Fournisseur</th><th>Montant</th><th>Statut</th></tr></thead><tbody>'+
+ (filtered.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(label(x.bus))+'</td><td>'+esc(x.record.type||'—')+'</td><td>'+esc(x.record.vendor||x.record.supplier||'—')+'</td><td>'+cash(x.amount)+'</td><td>'+esc(x.record.status||'—')+'</td></tr>').join('')||'<tr><td colspan="6">Aucune dépense correspondante.</td></tr>')+'</tbody></table></div></div>';
+ const period=p.querySelector('#expense-analysis-period'),bus=p.querySelector('#expense-analysis-bus'),fromEl=p.querySelector('#expense-analysis-from'),toEl=p.querySelector('#expense-analysis-to');
+ period.value=expenseAnalysisPeriod;bus.value=expenseAnalysisBus;p.querySelectorAll('.expense-analysis-custom').forEach(x=>x.hidden=expenseAnalysisPeriod!=='custom');
+ period.onchange=()=>{expenseAnalysisPeriod=period.value;renderExpenseAnalysis()};bus.onchange=()=>{expenseAnalysisBus=bus.value;renderExpenseAnalysis()};
+ fromEl.onchange=()=>{expenseAnalysisFrom=fromEl.value;renderExpenseAnalysis()};toEl.onchange=()=>{expenseAnalysisTo=toEl.value;renderExpenseAnalysis()};
+}
+async function printPersonnelBadges(kind,record=null){
+ if(!authorized)return alert('Connexion requise.');
+ const source=(kind==='staff'?staff:roles).filter(x=>x&&x.active!==false&&!x.v3Archived),list=record?[record]:source;
+ if(!list.length)return alert('Aucune fiche active à imprimer.');
+ try{await loadQRLib()}catch(e){return alert('Bibliothèque QR indisponible : '+e.message)}
+ const title=kind==='staff'?'Personnel G10':'Chauffeurs G10',prefix=kind==='staff'?'G10-STAFF':'G10-DRIVER',overlay=document.createElement('div');overlay.className='v3-print-overlay';
+ overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer / Enregistrer en PDF</button><button type="button" data-close>Fermer</button></div><h2>G10 TRANSPORT SCOLAIRE — '+title+'</h2><p class="small">'+list.length+' badge(s) • QR d’identification interne</p><div class="v3-qr-grid">'+list.map((x,i)=>'<div class="v3-print-badge"><b>G10 TRANSPORT SCOLAIRE</b><strong>'+esc(x.name||[x.firstName,x.lastName].filter(Boolean).join(' ')||'Nom à compléter')+'</strong><small>'+esc(kind==='staff'?(x.department||'Personnel'):(x.zone||'Chauffeur'))+'</small><div class="qr-cell" data-personnel-qr-slot="'+i+'"></div><small>'+esc(prefix+'|'+String(x.id||''))+'</small></div>').join('')+'</div></div>';
+ overlay.querySelector('[data-close]').onclick=()=>overlay.remove();overlay.querySelector('[data-print]').onclick=()=>window.print();overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};document.body.appendChild(overlay);
+ list.forEach((x,i)=>new QRCode(overlay.querySelector('[data-personnel-qr-slot="'+i+'"]'),{text:prefix+'|'+String(x.id||''),width:145,height:145,correctLevel:QRCode.CorrectLevel.H}));
+}
+function bindPersonnelQrButtons(){
+ p.querySelectorAll('[data-personnel-qr]').forEach(b=>b.onclick=()=>{const source=b.dataset.personnelQr==='staff'?staff:roles;printPersonnelBadges(b.dataset.personnelQr,source[Number(b.dataset.personnelIndex)])});
+ p.querySelectorAll('[data-print-personnel]').forEach(b=>b.onclick=()=>printPersonnelBadges(b.dataset.printPersonnel));
+}
+
 // Connexion manuelle : aucune connexion automatique, aucune donnée sensible dans l’HTML.
 // Retour immédiat même si le navigateur rencontre un souci de chargement.
 window.addEventListener('error',e=>{
