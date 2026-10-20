@@ -1529,13 +1529,65 @@ async function printAllBadges(){
   new QRCode(overlay.querySelector('[data-qr-slot="'+i+'"]'),{text:url.href,width:145,height:145,correctLevel:QRCode.CorrectLevel.H});
  });
 }
+
+let v3QRDisplay='students';
+function v3EmployeeQRRows(){
+ const make=(records,kind)=>records.filter(x=>x&&x.id!=null&&x.active!==false&&!x.v3Archived).map(x=>({
+  kind,id:String(x.id),name:String(x.name||[x.firstName,x.lastName].filter(Boolean).join(' ')).trim(),job:kind==='staff'?String(x.department||'Personnel'):'Chauffeur',bus:kind==='driver'?String(x.busId||''):''
+ })).filter(x=>x.name);
+ return [...make(staff,'staff'),...make(roles,'driver')].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+}
+function v3EmployeeQRRef(person){return 'G10-V3-PERSONNEL|'+person.kind+'|'+person.id;}
+async function v3EmployeeQRBadge(person){
+ if(!authorized)return alert('Connexion requise.');
+ try{
+  await loadQRLib();
+  const overlay=document.createElement('div');overlay.className='v3-print-overlay';
+  overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer / PDF</button><button type="button" data-close>Fermer</button></div>'+
+  '<div class="v3-print-badge"><b>G10 TRANSPORT SCOLAIRE — PERSONNEL</b><strong>'+esc(person.name)+'</strong><small>'+esc(person.job)+'</small><small>'+esc(person.bus||'')+'</small><div class="qr-cell" data-employee-qr></div><small>'+esc(v3EmployeeQRRef(person))+'</small></div>'+
+  '<p class="small">Badge d’identification interne uniquement : ce QR ne donne aucun droit d’accès et ne valide pas une présence ou un contrôle.</p></div>';
+  overlay.querySelector('[data-close]').onclick=()=>overlay.remove();
+  overlay.querySelector('[data-print]').onclick=()=>window.print();
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  new QRCode(overlay.querySelector('[data-employee-qr]'),{text:v3EmployeeQRRef(person),width:145,height:145,correctLevel:QRCode.CorrectLevel.H});
+ }catch(e){alert('QR personnel indisponible : '+e.message);}
+}
+async function v3PrintAllEmployeeBadges(){
+ if(!authorized)return alert('Connexion requise.');
+ const people=v3EmployeeQRRows();
+ if(!people.length)return alert('Aucune fiche Staff / Chauffeurs V3 active disponible pour générer des badges.');
+ try{await loadQRLib();}catch(e){return alert('Bibliothèque QR indisponible : '+e.message);}
+ const overlay=document.createElement('div');overlay.className='v3-print-overlay';
+ overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer les badges du personnel / PDF</button><button type="button" data-close>Fermer</button></div>'+
+ '<h2>G10 TRANSPORT SCOLAIRE — Personnel et chauffeurs</h2>'+
+ '<p class="small">Badges d’identification interne uniquement, sans droit d’accès ni contrôle automatique.</p>'+
+ '<div class="v3-qr-grid">'+people.map((person,i)=>'<div class="v3-print-badge"><b>G10 — PERSONNEL</b><strong>'+esc(person.name)+'</strong><small>'+esc(person.job)+'</small><small>'+esc(person.bus||'')+'</small><div class="qr-cell" data-employee-slot="'+i+'"></div><small>'+esc(v3EmployeeQRRef(person))+'</small></div>').join('')+'</div></div>';
+ overlay.querySelector('[data-close]').onclick=()=>overlay.remove();
+ overlay.querySelector('[data-print]').onclick=()=>window.print();
+ overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+ document.body.appendChild(overlay);
+ people.forEach((person,i)=>new QRCode(overlay.querySelector('[data-employee-slot="'+i+'"]'),{text:v3EmployeeQRRef(person),width:145,height:145,correctLevel:QRCode.CorrectLevel.H}));
+}
 renderQR=function(){
- const refs=subs.map(s=>s.qrRef).filter(Boolean);
- p.innerHTML=header('Badges / QR élèves','Références QR existantes • Impression individuelle ou groupée • Sans modification des badges.','<button class="btn green" id="v3-print-all">Imprimer tous les QR / badges</button>')+
- '<div class="card"><b>'+refs.length+' références présentes • '+(refs.length-new Set(refs).size)+' doublon(s)</b><p class="small">Prévisualise chaque badge avec Voir QR ; impression groupée en planches A4 avec repères de découpe.</p></div>'+
- '<div class="v3-qr-grid">'+subs.filter(s=>s.qrRef).map(s=>{const i=subs.indexOf(s);return '<div class="v3-print-badge"><b>'+esc(s.name)+'</b><small>'+esc(s.qrRef)+'</small><small>'+esc(s.school||'')+'</small><div class="v3-print-actions" style="margin:10px 0"><button type="button" class="edit-btn" data-qr="'+i+'">Voir QR / Badge</button></div></div>';}).join('')+'</div>';
- p.querySelector('#v3-print-all').onclick=printAllBadges;
- p.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>openBadge(+b.dataset.qr));
+ const people=v3EmployeeQRRows(),refs=subs.map(s=>s.qrRef).filter(Boolean);
+ const tabs='<div class="circuit-zone-tabs"><button type="button" class="zone-btn'+(v3QRDisplay==='students'?' selected':'')+'" data-qr-mode="students">QR élèves</button>'+
+ '<button type="button" class="zone-btn'+(v3QRDisplay==='employees'?' selected':'')+'" data-qr-mode="employees">QR personnel et chauffeurs</button></div>';
+ if(v3QRDisplay==='employees'){
+  p.innerHTML=header('Badges QR — personnel et chauffeurs','Génération à partir des fiches Staff et Chauffeurs enregistrées dans Firebase V3.')+
+  tabs+'<div class="card"><b>'+people.length+' fiche(s) active(s) avec nom et identifiant</b><p class="small">Pour JC, Gécolia, Martina et Laïca : vérifier leurs fiches dans Staff V3 avant impression. Le compte de connexion de Laïca sera créé séparément demain.</p><p class="small">Ces QR sont des badges d’identification interne, pas des identifiants de connexion, ni des preuves de présence.</p>'+
+  '<button type="button" class="btn green" id="v3-print-employees">Imprimer tous les badges du personnel</button></div>'+
+  '<div class="v3-qr-grid">'+people.map((person,i)=>'<div class="v3-print-badge"><b>'+esc(person.name)+'</b><small>'+esc(person.job)+'</small><small>'+esc(person.bus)+'</small><div class="v3-print-actions" style="margin:10px 0"><button type="button" class="edit-btn" data-employee="'+i+'">Voir QR / Badge</button></div></div>').join('')+'</div>';
+  p.querySelector('#v3-print-employees').onclick=v3PrintAllEmployeeBadges;
+  p.querySelectorAll('[data-employee]').forEach(btn=>btn.onclick=()=>v3EmployeeQRBadge(people[Number(btn.dataset.employee)]));
+ }else{
+  p.innerHTML=header('Badges / QR élèves','Références QR existantes • Impression individuelle ou groupée • Sans modification des badges.','<button class="btn green" id="v3-print-all">Imprimer tous les QR / badges élèves</button>')+
+  tabs+'<div class="card"><b>'+refs.length+' références présentes • '+(refs.length-new Set(refs).size)+' doublon(s)</b><p class="small">Prévisualise chaque badge avec Voir QR ; impression groupée en planches A4 avec repères de découpe.</p></div>'+
+  '<div class="v3-qr-grid">'+subs.filter(s=>s.qrRef).map(s=>{const i=subs.indexOf(s);return '<div class="v3-print-badge"><b>'+esc(s.name)+'</b><small>'+esc(s.qrRef)+'</small><small>'+esc(s.school||'')+'</small><div class="v3-print-actions" style="margin:10px 0"><button type="button" class="edit-btn" data-qr="'+i+'">Voir QR / Badge</button></div></div>';}).join('')+'</div>';
+  p.querySelector('#v3-print-all').onclick=printAllBadges;
+  p.querySelectorAll('[data-qr]').forEach(btn=>btn.onclick=()=>openBadge(+btn.dataset.qr));
+ }
+ p.querySelectorAll('[data-qr-mode]').forEach(btn=>btn.onclick=()=>{v3QRDisplay=btn.dataset.qrMode;renderQR();});
 };
 drawer.qr=renderQR;
 
