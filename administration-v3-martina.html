@@ -165,6 +165,10 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-filter-bar select{min-width:175px;max-width:min(320px,85vw);padding:10px;border-radius:8px;border:1px solid #bed2e7;background:white;color:#123d78;font-weight:600}
 .v3-filter-count{font-size:12px;color:#355e80;margin-left:auto}
 .v3-circuit-bus.v3-pending{outline:2px solid #efb546;background:#fff9e8}
+.v3-th-filter{display:flex;flex-direction:column;gap:5px;min-width:125px;white-space:normal}
+.v3-header-select{min-width:120px;max-width:210px;width:100%;border:1px solid #b5cee8;border-radius:7px;padding:6px 8px;background:#fff;color:#143a63;font-weight:600;font-size:11px}
+.v3-header-select:focus,.v3-filter-bar select:focus{outline:2px solid #176fd1;outline-offset:1px}
+.v3-filter-bar .edit-btn{align-self:end;white-space:nowrap}
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div style="margin:8px 0 4px"><button id="v3-reset-password" type="button" style="border:0;background:none;color:#1765b5;text-decoration:underline;cursor:pointer;padding:5px 0;font-weight:700">Définir ou réinitialiser mon mot de passe V3</button></div><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><div style="color:#61778d;font-size:11px;margin-top:5px" id="g10-build-label">Administration G10 — édition 20 octobre, connexion vérifiable</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
@@ -976,34 +980,86 @@ function rowNew(module,fields,defaults={}){
 }
 const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus affecté']];
 
-const v3ListFilters={abonnes:{student:'',school:'',bus:''},abonnement:{student:''}};
-const v3StudentChoices=()=>subs.filter(s=>s.name).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')).map(s=>[String(s.id),s.name]);
+
+const v3ListFilters={
+ abonnes:{student:'',school:'',bus:''},
+ abonnement:{student:'',school:'',bus:'',plan:'',partial:'',price:'',discount:'',status:''}
+};
+const v3BusOptions=[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']];
+function v3FilterValue(s,key){
+ switch(key){
+  case 'student':return String(s.id??'');
+  case 'school':return String(s.school||'');
+  case 'bus':return String(s.busId||'');
+  case 'plan':return String(s.plan||'Standard');
+  case 'partial':return String(s.partialService||'—');
+  case 'price':return String(Number(s.price)||0);
+  case 'discount':return String(Number(s.paymentV147?.discountPct)||0);
+  case 'status':return String(s.subscriptionStatus||'À confirmer');
+  default:return '';
+ }
+}
+function v3FilterSpecs(tab){
+ const unique=(key,formatter)=>[...new Set(subs.map(s=>v3FilterValue(s,key)))].sort((a,b)=>key==='price'||key==='discount'?Number(a)-Number(b):a.localeCompare(b,'fr')).map(value=>[value,formatter?formatter(value):value||'—']);
+ const specs=[
+ ['student','Élève','Tous les élèves',subs.filter(s=>s.name).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')).map(s=>[String(s.id),s.name])],
+ ['school','École','Toutes les écoles',unique('school')],
+ ['bus','Bus','Tous les bus',v3BusOptions]
+ ];
+ if(tab==='abonnement')specs.push(
+ ['plan','Formule','Toutes les formules',unique('plan')],
+ ['partial','Précision','Toutes les précisions',unique('partial')],
+ ['price','Tarif mensuel','Tous les tarifs',unique('price',v=>cash(Number(v)))],
+ ['discount','Réduction','Toutes les réductions',unique('discount',v=>v+' %')],
+ ['status','Statut','Tous les statuts',unique('status')]
+ );
+ return specs;
+}
+function v3FilterSelect(tab,key,compact=false){
+ const spec=v3FilterSpecs(tab).find(x=>x[0]===key);if(!spec)return '';
+ const [,label,all,options]=spec;
+ return '<select data-v3-filter="'+key+'" aria-label="Filtrer '+esc(label)+'" class="'+(compact?'v3-header-select':'')+'"><option value="">'+esc(all)+'</option>'+
+ options.map(([value,title])=>'<option value="'+esc(value)+'"'+(String(v3ListFilters[tab][key])===String(value)?' selected':'')+'>'+esc(title)+'</option>').join('')+'</select>';
+}
+function v3FilterHeader(tab,key,label){
+ return '<span class="v3-th-filter">'+esc(label)+v3FilterSelect(tab,key,true)+'</span>';
+}
 function v3FilterBar(tab){
- const state=v3ListFilters[tab],fields=tab==='abonnes'?
- [['student','Élève','Tous les élèves',v3StudentChoices()],['school','École','Toutes les écoles',[...new Set(subs.map(s=>s.school).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x])],['bus','Bus','Tous les bus',[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]]]:
- [['student','Élève','Tous les élèves',v3StudentChoices()]];
- return '<div class="v3-filter-bar" aria-label="Filtres du tableau">'+fields.map(([key,label,all,opts])=>
- '<label>'+label+'<select data-v3-filter="'+key+'"><option value="">'+all+'</option>'+opts.map(([value,title])=>'<option value="'+esc(value)+'"'+(String(state[key])===String(value)?' selected':'')+'>'+esc(title)+'</option>').join('')+'</select></label>').join('')+
- '<span class="v3-filter-count" id="v3-filter-count"></span></div>';
+ const fields=v3FilterSpecs(tab);
+ return '<div class="v3-filter-bar" aria-label="Filtres du tableau">'+fields.map(([key,label])=>
+ '<label>'+esc(label)+v3FilterSelect(tab,key)+'</label>').join('')+
+ '<button type="button" class="edit-btn" id="v3-reset-filters">Effacer les filtres</button>'+
+ '<span class="v3-filter-count" id="v3-filter-count" role="status"></span></div>';
 }
 function v3AttachFilters(tab){
  const state=v3ListFilters[tab];
  const apply=()=>{
   let count=0;
-  p.querySelectorAll('tr[data-v3-row-id]').forEach(row=>{
-   const s=subs.find(x=>String(x.id)===row.dataset.v3RowId);
-   const visible=!!s&&(!state.student||String(s.id)===state.student)&&(!state.school||s.school===state.school)&&(!state.bus||s.busId===state.bus);
-   row.hidden=!visible;if(visible)count++;
+  p.querySelectorAll('tbody tr[data-v3-row-id]').forEach(row=>{
+   const student=subs.find(x=>String(x.id)===row.dataset.v3RowId);
+   const visible=!!student&&Object.entries(state).every(([key,value])=>!value||v3FilterValue(student,key)===value);
+   row.hidden=!visible;row.style.display=visible?'':'none';if(visible)count++;
   });
-  const el=p.querySelector('#v3-filter-count');if(el)el.textContent=count+' dossier(s) affiché(s)';
+  const counter=p.querySelector('#v3-filter-count');if(counter)counter.textContent=count+' / '+subs.length+' dossier(s)';
  };
- p.querySelectorAll('[data-v3-filter]').forEach(el=>el.onchange=()=>{state[el.dataset.v3Filter]=el.value;apply()});
+ p.querySelectorAll('[data-v3-filter]').forEach(el=>el.onchange=()=>{
+  state[el.dataset.v3Filter]=el.value;
+  p.querySelectorAll('[data-v3-filter="'+el.dataset.v3Filter+'"]').forEach(other=>{if(other!==el)other.value=el.value;});
+  p.querySelectorAll('.v3-editrow').forEach(row=>row.remove());
+  apply();
+ });
+ const reset=p.querySelector('#v3-reset-filters');
+ if(reset)reset.onclick=()=>{
+  Object.keys(state).forEach(key=>state[key]='');
+  p.querySelectorAll('[data-v3-filter]').forEach(el=>el.value='');
+  p.querySelectorAll('.v3-editrow').forEach(row=>row.remove());
+  apply();
+ };
  apply();
 }
-
 renderSubs=function(){
  p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button>')+
- v3FilterBar('abonnes')+table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
+ v3FilterBar('abonnes')+table(['#',v3FilterHeader('abonnes','student','Enfant'),v3FilterHeader('abonnes','school','École'),'Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère',v3FilterHeader('abonnes','bus','Ligne / bus affecté'),'Action','Nettoyer'],
  subs.map((s,i)=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
  v3AttachFilters('abonnes');
  p.querySelector('#addSub').onclick=()=>rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});
@@ -1020,7 +1076,7 @@ const v3SubscriptionFields=[['plan','Formule'],['partialService','Précision'],[
 renderSubscription=function(){
  p.innerHTML=header('Tableau des abonnements — tous les axes','Choisir un élève puis modifier son abonnement. Enregistrement uniquement dans Firebase V3.')+
  v3FilterBar('abonnement')+
- table(['Élève','École','Bus','Formule','Précision','Tarif mensuel','Réduction','Statut','QR','Action'],
+ table([v3FilterHeader('abonnement','student','Élève'),v3FilterHeader('abonnement','school','École'),v3FilterHeader('abonnement','bus','Bus'),v3FilterHeader('abonnement','plan','Formule'),v3FilterHeader('abonnement','partial','Précision'),v3FilterHeader('abonnement','price','Tarif mensuel'),v3FilterHeader('abonnement','discount','Réduction'),v3FilterHeader('abonnement','status','Statut'),'QR','Action'],
  subs.map(s=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.busId)+'</td><td>'+esc(s.plan||'Standard')+'</td><td>'+esc(s.partialService||'—')+'</td><td>'+cash(s.price)+'</td><td>'+esc(s.paymentV147?.discountPct||0)+' %</td><td>'+esc(s.subscriptionStatus||'À confirmer')+'</td><td><button class="v3-light-qr" data-sub-qr="'+esc(s.id)+'" '+(!s.qrRef?'disabled':'')+'>Voir QR</button></td><td><button class="edit-btn" data-sub-edit="'+esc(s.id)+'">Modifier</button></td></tr>').join(''));
  v3AttachFilters('abonnement');
  p.querySelectorAll('[data-sub-edit]').forEach(b=>b.onclick=()=>{
