@@ -613,7 +613,7 @@ const cash=n=>Number(n||0).toLocaleString('fr-FR')+' FCFA';
 const selected=(opts,v)=>opts.map(x=>'<option value="'+esc(x)+'"'+(String(x)===String(v)?' selected':'')+'>'+esc(x)+'</option>').join('');
 const sel=(opts,v,field,id)=>'<select data-field="'+field+'" data-id="'+esc(id)+'">'+selected(opts,v)+'</select>';
 const p=document.getElementById('panel');const note=document.querySelector('.section-heading');
-note.hidden=true;note.textContent='';
+if(note){note.hidden=true;note.textContent='';}
 document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — Administration';
 document.querySelector('.space-title-kicker').textContent='G10 TRANSPORT SCOLAIRE — AKANDA / INTER-AKANDA / OWENDO';
 let dirty=0;const auditLog=[];function audit(action,category,record,before){auditLog.push({at:new Date().toISOString(),action,category,id:String(record.id||record.qrRef||''),before:JSON.parse(JSON.stringify(before||{})),after:JSON.parse(JSON.stringify(record))})}function confirmTwice(subject){return confirm('Confirmer la suppression ou le nettoyage de '+subject+' ?')&&confirm('DEUXIÈME CONFIRMATION : cette opération sera conservée dans l’historique de test. Continuer ?')}
