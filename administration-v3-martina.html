@@ -954,15 +954,15 @@ function paymentForm(record=null){
  const old=p.querySelector('#v3-payment-editor');if(old)old.remove();
  const wrapper=document.createElement('div');wrapper.id='v3-payment-editor';wrapper.className='card';
  const form=document.createElement('form');form.className='v3-inline-form';
- const fields=[['studentId','Élève','select'],['date','Date','date'],['month','Mois concerné','month'],['amount','Montant FCFA','number'],['method','Mode','select-method'],['note','Observation','text']];
+ const fields=[['studentId','Élève','select'],['date','Date','date'],['month','Mois concerné','month'],['amount','Montant FCFA','number'],['method','Mode','select-method'],['status','Statut','select-status'],['note','Observation','text']];
  for(const [key,label,type] of fields){const box=document.createElement('label');box.textContent=label;let input;
-  if(type==='select'||type==='select-method'){
+  if(type==='select'||type==='select-method'||type==='select-status'){
    input=document.createElement('select');
    if(type==='select'){const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choisir un élève';input.appendChild(placeholder);input.required=true;}
-   const options=type==='select'?subs.map(s=>[String(s.id),s.name]):[['Espèces','Espèces'],['Mobile Money','Mobile Money'],['Virement','Virement']];
+   const options=type==='select'?subs.map(s=>[String(s.id),s.name]):type==='select-status'?[['Payé','Payé'],['En attente','En attente'],['Avec reliquat','Avec reliquat']]:[['Espèces','Espèces'],['Mobile Money','Mobile Money'],['Virement','Virement'],['Chèque','Chèque'],['Autre','Autre']];
    for(const [value,title] of options){const option=document.createElement('option');option.value=value;option.textContent=title;input.appendChild(option);}
   }else{input=document.createElement('input');input.type=type;if(type==='number'){input.min='1';input.step='1';}}
-  input.name=key;input.value=record?.[key]??(key==='date'?new Date().toISOString().slice(0,10):key==='month'?new Date().toISOString().slice(0,7):key==='method'?'Espèces':'');
+  input.name=key;input.value=record?.[key]??(key==='date'?new Date().toISOString().slice(0,10):key==='month'?new Date().toISOString().slice(0,7):key==='method'?'Espèces':key==='status'?'Payé':'');
   box.appendChild(input);form.appendChild(box);
  }
  const save=document.createElement('button');save.className='btn green';save.type='submit';save.textContent=record?'Modifier le paiement V3':'Enregistrer le paiement V3';form.appendChild(save);
@@ -974,7 +974,7 @@ function paymentForm(record=null){
   const amount=Number(values.amount);
   if(!subs.some(s=>String(s.id)===values.studentId)||!values.date||!/^\d{4}-\d{2}$/.test(values.month)||!Number.isFinite(amount)||amount<=0){error.textContent='Choisis un élève, une date, un mois et un montant positif.';return;}
   if(payments.some(x=>String(x.id)!==String(record?.id)&&String(x.studentId)===values.studentId&&x.date===values.date&&x.month===values.month&&Number(x.amount)===amount&&x.method===values.method)){error.textContent='Un paiement identique existe déjà dans V3. Vérifie avant de continuer.';return;}
-  const target={...(record||{id:freshId('payments'),status:'Enregistré'}),...values,amount};
+  const target={...(record||{id:freshId('payments')}),...values,amount};
   save.disabled=true;
   try{await saveRecord('payments',target,record?copy(record):null);}catch(err){error.textContent=formatError(err);save.disabled=false;}
  };
@@ -986,17 +986,19 @@ renderPayments=function(){
  const badge=(text,kind='')=>'<span class="v3-payment-pill '+kind+'">'+esc(text||'—')+'</span>';
  const payStatus=s=>String(s.payment||'').trim()||'Non renseigné';
  const statusKind=value=>/non.payé|non.paye|impayé|impaye|refus|annul/i.test(value)?'status-neutral':/partiel|reliquat|attente|vérifier|verifier/i.test(value)?'status-pending':/payé|payee|soldé|solde|confirm/i.test(value)?'status-ok':'status-neutral';
- const labelMonth=s=>String(s.paymentV147?.monthKey||s.paymentMonth||'').trim()||'—';
+ const labelMonth=s=>String(s.paymentMonth||s.paymentV147?.monthKey||'').trim()||'—';
  const labelDate=s=>String(s.paymentDate||'').trim()||'—';
  const labelMethod=s=>String(s.paymentMethod||s.paymentV147?.paymentMethod||'').trim()||'—';
+ const calendar=(value,type,field,index)=>{const pattern=type==='date'?/^\d{4}-\d{2}-\d{2}$/:/^\d{4}-\d{2}$/;return pattern.test(value)?'<input type="'+type+'" class="v3-payment-'+type+'" data-legacy-edit="'+index+'" data-legacy-field="'+field+'" value="'+esc(value)+'" aria-label="'+(type==='date'?'Date':'Mois')+' du paiement">':'<span>'+esc(value)+'</span>';};
+ const modeMenu=(value,index)=>{const modes=['—','Espèces','Mobile Money','Virement','Chèque','Autre'];if(!modes.includes(value))modes.push(value);return '<select class="v3-payment-method" data-legacy-edit="'+index+'" data-legacy-field="paymentMethod" aria-label="Mode de paiement">'+modes.map(x=>'<option value="'+esc(x==='—'?'':x)+'"'+(x===value?' selected':'')+'>'+esc(x)+'</option>').join('')+'</select>';};
  const sourceRows=subs.map((s,i)=>{
-  const amount=moneyNum(s.amountReceived),status=payStatus(s);
-  return '<tr data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+esc(labelDate(s))+'</td><td>'+esc(labelMonth(s))+'</td><td class="v3-payment-amount">'+cash(amount)+'</td><td>'+esc(labelMethod(s))+'</td><td>'+badge(status,statusKind(status))+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button></td></tr>';
+  const amount=moneyNum(s.amountReceived),status=payStatus(s),paid=/^(pay[ée]|sold[ée]|confirm)/i.test(status)&&amount>0;
+  return '<tr data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+calendar(labelDate(s),'date','paymentDate',i)+'</td><td>'+calendar(labelMonth(s),'month','paymentMonth',i)+'</td><td class="v3-payment-amount">'+cash(amount)+'</td><td>'+modeMenu(labelMethod(s),i)+'</td><td>'+badge(status,statusKind(status))+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button>'+(paid?' <button type="button" class="edit-btn" data-legacy-receipt="'+i+'">Justificatif</button>':'')+'</td></tr>';
  }).join('');
  const transactionRows=payments.map((pay,i)=>{
   const student=subs.find(s=>String(s.id)===String(pay.studentId));
   const name=student?.name||'Élève non retrouvé';
-  return '<tr><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button></td></tr>';
+  return '<tr><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button> '+(/^(pay[ée]|sold[ée]|confirm)/i.test(String(pay.status||''))?'<button class="edit-btn" data-v3-receipt="'+i+'">Reçu / Imprimer</button>':'')+'</td></tr>';
  }).join('')||'<tr><td colspan="7" class="v3-payment-empty">Aucune transaction V3 distincte enregistrée. Le cumul historique ci-dessus ne constitue pas une liste de reçus individuels.</td></tr>';
  p.innerHTML=header('Paiements — tous les axes','Suivi des fiches importées et transactions V3 distinctes, sans double comptage.','<button class="btn green" id="addPayment">+ Ajouter un paiement</button>')+
  '<div class="v3-payment-kpis">'+
@@ -1010,6 +1012,9 @@ renderPayments=function(){
  table(['Élève','Date','Mois','Montant','Mode','Statut','Action'],transactionRows,'payments-table');
  p.querySelector('#addPayment').onclick=()=>paymentForm();
  p.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>paymentForm(payments[+b.dataset.pay]));
+ p.querySelectorAll('[data-v3-receipt]').forEach(b=>b.onclick=()=>printPaymentReceipt(payments[+b.dataset.v3Receipt],false));
+ p.querySelectorAll('[data-legacy-receipt]').forEach(b=>b.onclick=()=>printPaymentReceipt(subs[+b.dataset.legacyReceipt],true));
+ p.querySelectorAll('[data-legacy-edit]').forEach(el=>el.onchange=async()=>{const r=subs[+el.dataset.legacyEdit],field=el.dataset.legacyField,before=copy(r),value=el.value;el.disabled=true;try{await saveRecord('subs',{...r,[field]:value},before);}catch(err){el.value=field==='paymentMonth'?String(before.paymentMonth||before.paymentV147?.monthKey||''):before[field]||'';el.disabled=false;alert(formatError(err));}});
  p.querySelectorAll('[data-payment-filter]').forEach(button=>button.onclick=()=>{
   const selected=button.dataset.paymentFilter;
   p.querySelectorAll('[data-payment-filter]').forEach(x=>x.classList.toggle('on',x===button));
@@ -1037,6 +1042,19 @@ renderPayments=function(){
    '<p class="small" style="margin:10px 0 0">Consultation de la fiche importée, sans modification ni génération de reçu.</p></td>';
   row.after(detail);button.setAttribute('aria-expanded','true');button.textContent='Masquer';
  });};
+function printPaymentReceipt(record,legacy){
+ const s=legacy?record:subs.find(x=>String(x.id)===String(record.studentId));
+ const amount=legacy?moneyNum(record.amountReceived):moneyNum(record.amount);
+ if(!amount)return alert('Aucun montant positif disponible pour ce justificatif.');
+ const date=legacy?record.paymentDate:record.date;
+ const month=legacy?(record.paymentMonth||record.paymentV147?.monthKey):record.month;
+ const method=legacy?(record.paymentMethod||record.paymentV147?.paymentMethod):record.method;
+ const title=legacy?'JUSTIFICATIF — FICHE IMPORTÉE':'REÇU DE PAIEMENT G10 V3';
+ const warning=legacy?'<p><b>Document reconstitué depuis la fiche importée.</b> À vérifier avec les pièces de paiement originales avant remise comme reçu officiel. Aucune transaction bancaire indépendante n’a été reconstituée.</p>':'<p>Reçu établi à partir du paiement enregistré dans Firebase V3.</p>';
+ const overlay=document.createElement('div');overlay.className='v3-print-overlay';
+ overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer / PDF</button><button type="button" data-close>Fermer</button></div><div class="v3-receipt"><h2>G10 TRANSPORT SCOLAIRE</h2><h3>'+title+'</h3><p><b>Élève :</b> '+esc(s?.name||'—')+'</p><p><b>Date :</b> '+esc(date||'—')+' &nbsp; <b>Mois :</b> '+esc(month||'—')+'</p><p><b>Mode :</b> '+esc(method||'—')+'</p><p><b>Montant :</b> <strong>'+cash(amount)+'</strong></p>'+(legacy?'':'<p><b>Référence :</b> '+esc(record.id||'—')+'</p>')+warning+'</div></div>';
+ overlay.querySelector('[data-close]').onclick=()=>overlay.remove();overlay.querySelector('[data-print]').onclick=()=>window.print();overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.appendChild(overlay);
+}
 // Abonnement : écriture V3 explicite au changement, avec restauration visuelle en cas d’échec.
 bindFields=function(after){
  p.querySelectorAll('[data-field]').forEach(el=>{
