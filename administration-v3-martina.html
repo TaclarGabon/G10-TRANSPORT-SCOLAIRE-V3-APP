@@ -163,6 +163,28 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
+<script>
+(function(){
+ const form=document.getElementById('v3-login-form');
+ const status=document.getElementById('v3-auth-status');
+ if(!form||!status)return;
+ form.addEventListener('submit',function(e){
+   if(window.__G10_V3_LOGIN_BOUND)return;
+   e.preventDefault();
+   status.textContent="Le formulaire est visible, mais le module d’administration n’a pas terminé son chargement. Recharge la page (Ctrl + Maj + R). Si ce message revient, transmets-moi cette phrase.";
+   status.style.background='#fff1f0';status.style.borderColor='#e8a9a6';status.style.color='#9d2623';
+ },true);
+ window.addEventListener('error',function(e){
+   if(window.__G10_V3_LOGIN_BOUND)return;
+   if(e.target&&e.target.tagName==='SCRIPT'){
+     status.textContent='Le service de connexion Firebase ne s’est pas chargé. Vérifie la connexion Internet et recharge.';
+   }else if(e.message){
+     status.textContent='Erreur de chargement de l’administration : '+String(e.message).slice(0,160);
+   }else return;
+   status.style.background='#fff1f0';status.style.borderColor='#e8a9a6';status.style.color='#9d2623';
+ },true);
+})();
+</script>
 <nav class="top" id="tabs" style="display:none">
 <button class="on" data-tab="abonnes">Abonnés</button>
 <button data-tab="abonnement">Abonnement</button>
@@ -1325,6 +1347,7 @@ window.addEventListener('error',e=>{
  if(e.target&&e.target.tagName==='SCRIPT')message('Le module de connexion Firebase ne se charge pas. Vérifie ta connexion et recharge la page.','error');
  else if(e.error)message('Erreur technique de chargement : '+String(e.message||'script').slice(0,180),'error');
 },true);
+window.__G10_V3_LOGIN_BOUND=true;
 gate.querySelector('#v3-login-form').addEventListener('submit',async e=>{
  e.preventDefault();const btn=gate.querySelector('#v3-connect');btn.disabled=true;message('Étape 1/3 — vérification des identifiants Firebase…');
  try{
