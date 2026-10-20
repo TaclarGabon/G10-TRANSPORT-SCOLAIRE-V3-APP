@@ -1315,18 +1315,41 @@ renderCircuit=function(bus=currentCircuitBus,phase=currentCircuitPhase){
  let content='<div class="v3-live-info">'+(saved?'Ordre enregistré dans Firebase V3.':'Ordre issu des affectations importées : pas encore enregistré comme circuit V3.')+'</div>';
  if(schoolPhase)content+=table(['Ordre','Établissement','Élèves concernés','Déplacer'],schools.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s)+'</td><td>'+students.filter(x=>x.school===s).length+'</td><td><button class="edit-btn" data-cschool="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cschool="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="4">Aucun établissement affecté.</td></tr>');
  else content+=table(['Ordre','Élève','École','Axe','Bus affecté','Adresse / repère','Déplacer'],students.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.serviceZone||s.transportAxe||'—')+'</td><td><select class="v3-circuit-bus" data-student="'+esc(v3StudentKey(s))+'">'+Object.keys(v3BusNames).map(id=>'<option value="'+id+'"'+(id===s.busId?' selected':'')+'>'+esc(v3BusNames[id])+'</option>').join('')+'</select></td><td>'+esc(s.approxPlace||s.district||s.address||'—')+'</td><td><button class="edit-btn" data-cstudent="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cstudent="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="7">Aucun élève affecté à ce bus.</td></tr>');
- content+='<div class="card"><button type="button" class="edit-btn" id="v3-verify-route">Vérifier l’enregistrement dans Firebase V3</button> <span id="v3-route-check" role="status" class="small"></span></div>';
+ if(!schoolPhase)content+='<div class="card"><button type="button" class="btn green" id="v3-save-bus">Enregistrer le changement de bus dans Firebase V3</button> <span class="small">Choisir le nouveau bus, puis enregistrer. Un élève à la fois.</span></div>';
+ content+='<div class="card"><button type="button" class="edit-btn" id="v3-verify-route">Vérifier l’ordre du circuit dans Firebase V3</button> <span id="v3-route-check" role="status" class="small"></span></div>';
  v3CircuitShell(bus,phase,content);
  p.querySelectorAll('[data-cstudent]').forEach(b=>b.onclick=v3CircuitBusy(()=>v3ShiftStudent(bus,phase,Number(b.dataset.cstudent),Number(b.dataset.delta))));
  p.querySelectorAll('[data-cschool]').forEach(b=>b.onclick=v3CircuitBusy(()=>v3ShiftSchool(bus,phase,Number(b.dataset.cschool),Number(b.dataset.delta))));
- p.querySelectorAll('.v3-circuit-bus').forEach(el=>el.onchange=async()=>{
-  const student=subs.find(s=>v3StudentKey(s)===el.dataset.student);if(!student)return;
-  const before=copy(student),updated={...before,busId:el.value};
-  if(!confirm('Changer l’affectation de '+student.name+' vers '+v3BusNames[el.value]+' dans Firebase V3 ?')){el.value=before.busId;return;}
-  el.disabled=true;
-  try{await saveRecord('subs',updated,before);v3CircuitStatus('Affectation du bus enregistrée dans V3.');}
-  catch(err){el.value=before.busId;el.disabled=false;v3CircuitStatus('Affectation refusée : '+formatError(err),true);}
- });
+
+ // Changement explicite : le menu ne modifie aucune donnée avant confirmation.
+ if(!schoolPhase){
+  p.querySelectorAll('.v3-circuit-bus').forEach(el=>el.onchange=()=>{
+   const student=subs.find(x=>v3StudentKey(x)===el.dataset.student);
+   const pending=!!student&&el.value!==student.busId;
+   el.classList.toggle('v3-pending',pending);
+   v3CircuitStatus(pending?'Nouveau bus sélectionné. Clique sur « Enregistrer le changement de bus » pour confirmer.':'');
+  });
+  p.querySelector('#v3-save-bus').onclick=async()=>{
+   if(saveBusy)return;
+   const changes=[...p.querySelectorAll('.v3-circuit-bus')].map(el=>({el,student:subs.find(x=>v3StudentKey(x)===el.dataset.student)})).filter(x=>x.student&&x.el.value!==x.student.busId);
+   if(!changes.length){v3CircuitStatus('Aucun changement de bus à enregistrer.');return;}
+   if(changes.length>1){v3CircuitStatus('Enregistre un seul changement de bus à la fois pour éviter toute erreur.',true);return;}
+   const {el,student}=changes[0],newBus=el.value,before=copy(student);
+   if(!v3BusNames[newBus]){v3CircuitStatus('Bus invalide.',true);return;}
+   if(!confirm('Confirmer le transfert de '+student.name+' : '+v3BusNames[before.busId]+' → '+v3BusNames[newBus]+' ?'))return;
+   el.disabled=true;v3CircuitStatus('Enregistrement du changement de bus en cours…');
+   try{
+    await saveRecord('subs',{...before,busId:newBus},before);
+    const server=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val();
+    if(server!==newBus)throw Error('La relecture du bus ne correspond pas au choix. Contacte la Direction avant de recommencer.');
+    v3CircuitStatus('Transfert de '+student.name+' vers '+v3BusNames[newBus]+' confirmé par Firebase V3. Pour les scans, la Direction doit actualiser la liste des badges dans le module Logistique.');
+   }catch(err){
+    const current=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val().catch(()=>null);
+    if(current===newBus)v3CircuitStatus('Changement de bus enregistré dans V3. La vérification finale du scanner reste à faire.');
+    else{el.value=before.busId;el.disabled=false;v3CircuitStatus('Affectation refusée : '+formatError(err),true);}
+   }
+  };
+ }
  p.querySelector('#v3-verify-route').onclick=async()=>{
   const target=p.querySelector('#v3-route-check');target.textContent='Relecture du serveur…';
   try{await ensureRole();const record=(await initFirebase().database().ref(DATA+'/circuits/'+v3RouteId(bus,phase)).once('value')).val();target.textContent=record?'Enregistrement présent sur Firebase V3 ('+v3GabonTime(record.updatedAt)+').':'Aucun ordre V3 sauvegardé pour cette étape.';}
