@@ -153,7 +153,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
  .v3-print-sheet>h2,.v3-print-sheet>p{display:none!important}
 }
 </style></head><body>
-<div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — Liste des abonnés</div></div><div><button type="button" onclick="document.querySelector('#tabs [data-tab=abonnes]')?.click()">Accueil</button></div></div>
+<div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — Liste des abonnés</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <nav class="top" id="tabs" style="display:none">
 <button class="on" data-tab="abonnes">Abonnés</button>
 <button data-tab="abonnement">Abonnement</button>
@@ -583,7 +583,7 @@ const selected=(opts,v)=>opts.map(x=>'<option value="'+esc(x)+'"'+(String(x)===S
 const sel=(opts,v,field,id)=>'<select data-field="'+field+'" data-id="'+esc(id)+'">'+selected(opts,v)+'</select>';
 const p=document.getElementById('panel');const note=document.querySelector('.section-heading');
 note.hidden=true;note.textContent='';
-document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — Accès Administration / Direction';
+document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — Administration';
 document.querySelector('.space-title-kicker').textContent='G10 TRANSPORT SCOLAIRE — AKANDA / INTER-AKANDA / OWENDO';
 let dirty=0;const auditLog=[];function audit(action,category,record,before){auditLog.push({at:new Date().toISOString(),action,category,id:String(record.id||record.qrRef||''),before:JSON.parse(JSON.stringify(before||{})),after:JSON.parse(JSON.stringify(record))})}function confirmTwice(subject){return confirm('Confirmer la suppression ou le nettoyage de '+subject+' ?')&&confirm('DEUXIÈME CONFIRMATION : cette opération sera conservée dans l’historique de test. Continuer ?')}
 const moneyNum=x=>Number(x)||0;
@@ -752,11 +752,11 @@ let authorized=false, activeRole='', signedUser=null, saveBusy=false;
 const tabs=document.getElementById('tabs');
 const statusBar=document.getElementById('v3-changes');
 const gate=document.createElement('section');gate.className='card';gate.id='v3-v3-connection';
-gate.innerHTML='<h2>Administration / Direction</h2>'+ 
+gate.innerHTML='<h2>Administration</h2>'+ 
  '<p>Connecte-toi pour accéder à ton espace de travail G10 Transport Scolaire.</p>'+ 
  '<form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
- '<input type="email" id="v3-email" required autocomplete="username" placeholder="Email Firebase" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px">'+
- '<input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe Firebase" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px">'+
+ '<input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px">'+
+ '<input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px">'+
  '<button type="submit" class="btn green" id="v3-connect">Se connecter</button></form>'+ 
  '<div id="v3-auth-status" role="status" aria-live="polite" style="padding:8px 0;color:#123d78"></div>'+ 
  '<button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser depuis Firebase V3</button> '+
@@ -821,10 +821,10 @@ function applyV3(data){
  dirty=0;auditLog.splice(0);
  const d=data.importMeta;
  const when=typeof d.importedAt==='number'?new Date(d.importedAt).toLocaleString('fr-FR',{timeZone:'Africa/Libreville'}):'date inconnue';
- statusBar.textContent='Firebase V3 • '+subs.length+' abonnés • '+expense.length+' dépenses • '+roles.length+' chauffeurs • '+staff.length+' staff • '+payments.length+' paiement(s) V3 distinct(s).';
- note.textContent='Données chargées depuis Firebase V3 à '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville). Import initial : '+when+'. V2 non consultée.';
- document.querySelector('.space-title-text').textContent=(activeRole==='direction'?'DIRECTION V3':'ADMINISTRATION V3')+' — données Firebase V3';
- document.title='G10 Transport Scolaire — '+(activeRole==='direction'?'Direction V3':'Administration V3');
+ statusBar.textContent=subs.length+' abonnés • '+expense.length+' dépenses • '+roles.length+' chauffeurs • '+staff.length+' membres du personnel • '+payments.length+' nouveau(x) paiement(s).';
+ note.textContent='Dernière actualisation : '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville).';
+ document.querySelector('.space-title-text').textContent='ADMINISTRATION — G10 Transport Scolaire';
+ document.title='G10 Transport Scolaire — Administration';
  tabs.style.display='flex';p.style.display='block';
  const active=tabs.querySelector('button.on')?.dataset.tab||'abonnes';
  (drawer[active]||renderSubs)();
@@ -842,7 +842,7 @@ async function reloadV3(){
  if(!data)throw Error('La branche Firebase V3/data est vide. Aucun chargement depuis V2.');
  applyV3(data);
  authorized=true;
- message('Lecture Firebase V3 réussie : '+subs.length+' abonnés, '+expense.length+' dépenses, '+payments.length+' paiement(s) V3. Rôle : '+activeRole+'.');
+ message('Connexion établie : '+subs.length+' abonnés, '+expense.length+' dépenses. Profil : '+(activeRole==='direction'?'Direction':'Administration')+'.');
  gate.querySelector('#v3-refresh').hidden=false;gate.querySelector('#v3-signout').hidden=false;
  gate.querySelector('#v3-login-form').style.display='none';
  gate.querySelector('h2').hidden=true;gate.querySelector('p').hidden=true;gate.classList.add('v3-connected');
@@ -1318,8 +1318,8 @@ gate.querySelector('#v3-signout').onclick=async()=>{
  gate.querySelector('#v3-login-form').style.display='flex';
  gate.querySelector('h2').hidden=false;gate.querySelector('p').hidden=false;gate.classList.remove('v3-connected');
  try{await firebase.auth().signOut()}catch(_){ }
- document.querySelector('.space-title-text').textContent='G10 V3 — connexion Firebase';
- document.title='G10 Transport Scolaire — Connexion V3';
+ document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — Administration';
+ document.title='G10 Transport Scolaire — Administration';
  message('Déconnecté. Les données privées ont été retirées de l’affichage.');
 };
 // Verrouiller l’accès aux vues avant authentification, même si un clic survient trop tôt.
