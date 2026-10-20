@@ -160,9 +160,14 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-month-filter button.on{background:#1264b7;color:white;border-color:#1264b7}
 .v3-month-filter button:focus-visible{outline:3px solid #f5b942;outline-offset:2px}
 .v3-month-filter-note{color:#506e8a;font-size:12px;margin:2px 0 14px}
+.v3-filter-bar{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:12px 14px;background:#f0f6fd;border:1px solid #c9ddf1;border-radius:12px;margin:10px 0}
+.v3-filter-bar label{display:flex;flex-direction:column;gap:5px;font-weight:700;color:#123d78;font-size:12px}
+.v3-filter-bar select{min-width:175px;max-width:min(320px,85vw);padding:10px;border-radius:8px;border:1px solid #bed2e7;background:white;color:#123d78;font-weight:600}
+.v3-filter-count{font-size:12px;color:#355e80;margin-left:auto}
+.v3-circuit-bus.v3-pending{outline:2px solid #efb546;background:#fff9e8}
 </style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
-<section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
+<section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div style="margin:8px 0 4px"><button id="v3-reset-password" type="button" style="border:0;background:none;color:#1765b5;text-decoration:underline;cursor:pointer;padding:5px 0;font-weight:700">Définir ou réinitialiser mon mot de passe V3</button></div><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><div style="color:#61778d;font-size:11px;margin-top:5px" id="g10-build-label">Administration G10 — édition 20 octobre, connexion vérifiable</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
 <script>
 (function(){
  const form=document.getElementById('v3-login-form');
@@ -613,7 +618,7 @@ const cash=n=>Number(n||0).toLocaleString('fr-FR')+' FCFA';
 const selected=(opts,v)=>opts.map(x=>'<option value="'+esc(x)+'"'+(String(x)===String(v)?' selected':'')+'>'+esc(x)+'</option>').join('');
 const sel=(opts,v,field,id)=>'<select data-field="'+field+'" data-id="'+esc(id)+'">'+selected(opts,v)+'</select>';
 const p=document.getElementById('panel');const note=document.querySelector('.section-heading');
-note.hidden=true;note.textContent='';
+if(note){note.hidden=true;note.textContent='';}
 document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — Administration';
 document.querySelector('.space-title-kicker').textContent='G10 TRANSPORT SCOLAIRE — AKANDA / INTER-AKANDA / OWENDO';
 let dirty=0;const auditLog=[];function audit(action,category,record,before){auditLog.push({at:new Date().toISOString(),action,category,id:String(record.id||record.qrRef||''),before:JSON.parse(JSON.stringify(before||{})),after:JSON.parse(JSON.stringify(record))})}function confirmTwice(subject){return confirm('Confirmer la suppression ou le nettoyage de '+subject+' ?')&&confirm('DEUXIÈME CONFIRMATION : cette opération sera conservée dans l’historique de test. Continuer ?')}
@@ -818,8 +823,13 @@ function movementsFromSnapshot(state){
  return out;
 }
 let payments=[];
+// Instantanés exacts des données Firebase avant tout enrichissement local.
+const v3OriginalRecords={};
 function applyV3(data){
  if(!data||typeof data!=='object'||!data.importMeta||!data.subs)throw Error('Import V3 absent ou incomplet. Aucun retour automatique vers la V2.');
+ for(const module of ['subs','payments','expenses','drivers','staff','circuits','movements']){
+  v3OriginalRecords[module]=new Map(Object.entries(data[module]||{}).filter(([,v])=>v&&typeof v==='object'&&!Array.isArray(v)).map(([key,v])=>[String(v.id??key),copy(v)]));
+ }
  const newSubs=rowsOf(data.subs),newExpenses=rowsOf(data.expenses),newDrivers=rowsOf(data.drivers),newStaff=rowsOf(data.staff);
  if(!newSubs.length)throw Error('Aucun abonné dans V3 : affichage interrompu par sécurité.');
  const source=data.sourceStateV2&&typeof data.sourceStateV2==='object'?data.sourceStateV2:{};
@@ -848,7 +858,7 @@ function applyV3(data){
  const d=data.importMeta;
  const when=typeof d.importedAt==='number'?new Date(d.importedAt).toLocaleString('fr-FR',{timeZone:'Africa/Libreville'}):'date inconnue';
  statusBar.textContent=subs.length+' abonnés • '+expense.length+' dépenses • '+roles.length+' chauffeurs • '+staff.length+' membres du personnel • '+payments.length+' nouveau(x) paiement(s).';
- note.textContent='Dernière actualisation : '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville).';
+ if(note)note.textContent='Dernière actualisation : '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville).';
  document.querySelector('.space-title-text').textContent='ADMINISTRATION — G10 Transport Scolaire';
  document.title='G10 Transport Scolaire — Administration';
  tabs.style.display='flex';p.style.display='block';
@@ -886,7 +896,10 @@ async function saveRecord(module,record,before=null){
  try{
   const current=(await ref.once('value')).val();
   if(before===null&&current!==null)throw Error('Identifiant déjà utilisé : aucun écrasement.');
-  if(before!==null&&stable(current)!==stable(before))throw Error('Cette fiche a changé depuis son ouverture. Actualise la V3 avant de modifier.');
+  if(before!==null){
+   const baseline=v3OriginalRecords[module]?.get(String(record.id));
+   if(!baseline||stable(current)!==stable(baseline))throw Error('Cette fiche a changé depuis son ouverture. Actualise la V3 avant de modifier.');
+  }
   const stamp=firebase.database.ServerValue.TIMESTAMP;
   const payload={...record,id:String(record.id),updatedBy:user.uid,updatedAt:stamp};
   if(current&&typeof current.createdAt==='number')payload.createdAt=current.createdAt;
@@ -908,9 +921,23 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
  const form=document.createElement('form');form.className='v3-inline-form';
  for(const [key,label,type] of fields){
   const box=document.createElement('label');box.textContent=label;
-  const input=document.createElement('input');input.name=key;input.type=type||'text';
-  if(type==='number'){input.min='0';input.step='1';}input.value=record[key]??'';
-  box.appendChild(input);form.appendChild(box);
+
+  const choices=key==='busId'?[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]:
+   key==='school'&&module==='subs'?[...new Set([record.school,...subs.map(s=>s.school)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]).concat([['__other__','Autre établissement (à saisir)']]):
+   key==='plan'?['Standard','VIP','Partiel','A-R Akanda'].map(x=>[x,x]):
+   key==='partialService'?[['','—'],['Matin uniquement','Matin uniquement'],['Soir uniquement','Soir uniquement']]:
+   key==='subscriptionStatus'?['À confirmer','En attente de paiement','Confirmé','Avec reliquat','À vérifier'].map(x=>[x,x]):
+   key==='discountPct'?['0','10','50'].map(x=>[x,x+' %']):null;
+  const input=document.createElement(choices?'select':'input');input.name=key;
+  if(choices){for(const [value,label] of choices){const option=document.createElement('option');option.value=value;option.textContent=label;input.appendChild(option);}}
+  else{input.type=type||'text';if(type==='number'){input.min='0';input.step='1';}}
+  input.value=record[key]??'';box.appendChild(input);
+  if(key==='school'&&choices){
+   const custom=document.createElement('input');custom.name='schoolCustom';custom.placeholder='Nom du nouvel établissement';custom.hidden=true;
+   input.onchange=()=>{custom.hidden=input.value!=='__other__';custom.required=!custom.hidden;};
+   box.appendChild(custom);
+  }
+  form.appendChild(box);
  }
  const submit=document.createElement('button');submit.className='btn green';submit.type='submit';submit.textContent=isNew?'Ajouter dans V3':'Enregistrer dans V3';form.appendChild(submit);
  const cancel=document.createElement('button');cancel.type='button';cancel.className='edit-btn';cancel.textContent='Annuler';cancel.onclick=()=>tr.remove();form.appendChild(cancel);
@@ -918,8 +945,18 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
  form.onsubmit=async e=>{
   e.preventDefault();if(saveBusy)return;
   const updated={...record};
-  for(const [key,,type] of fields){const value=form.elements.namedItem(key).value.trim();updated[key]=type==='number'?Number(value):value;}
+  for(const [key,,type] of fields){
+   let value=form.elements.namedItem(key).value.trim();
+   if(key==='school'&&value==='__other__')value=form.elements.namedItem('schoolCustom').value.trim();
+   updated[key]=type==='number'?Number(value):value;
+  }
+  if(module==='subs'&&Object.prototype.hasOwnProperty.call(updated,'discountPct')){
+   updated.paymentV147={...(updated.paymentV147||{}),discountPct:Number(updated.discountPct)};
+   delete updated.discountPct;
+  }
   if(module==='subs'&&!updated.name?.trim())return error.textContent='Nom de l’élève obligatoire.';
+  if(module==='subs'&&updated.school==='__other__')return error.textContent='Choisis ou saisis une école.';
+  if(module==='subs'&&updated.price!==undefined&&(!Number.isFinite(Number(updated.price))||Number(updated.price)<0))return error.textContent='Tarif invalide.';
   if(['drivers','staff'].includes(module)&&!updated.name?.trim())return error.textContent='Nom obligatoire.';
   if(module==='expenses'&&(!updated.type?.trim()||!updated.date||!Number.isFinite(updated.amount)||updated.amount<0))return error.textContent='Type, date et montant valide obligatoires.';
   if(module==='payments'&&(!updated.studentId||!updated.date||!/^\d{4}-\d{2}$/.test(updated.month)||!Number.isFinite(updated.amount)||updated.amount<=0))return error.textContent='Élève, date, mois et montant positif obligatoires.';
@@ -937,11 +974,38 @@ function rowNew(module,fields,defaults={}){
  const record={id:freshId(module),...defaults};
  editForm(module,record,fields,null,true);
 }
-const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus (BUS-1/2/3)']];
+const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus affecté']];
+
+const v3ListFilters={abonnes:{student:'',school:'',bus:''},abonnement:{student:''}};
+const v3StudentChoices=()=>subs.filter(s=>s.name).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')).map(s=>[String(s.id),s.name]);
+function v3FilterBar(tab){
+ const state=v3ListFilters[tab],fields=tab==='abonnes'?
+ [['student','Élève','Tous les élèves',v3StudentChoices()],['school','École','Toutes les écoles',[...new Set(subs.map(s=>s.school).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x])],['bus','Bus','Tous les bus',[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]]]:
+ [['student','Élève','Tous les élèves',v3StudentChoices()]];
+ return '<div class="v3-filter-bar" aria-label="Filtres du tableau">'+fields.map(([key,label,all,opts])=>
+ '<label>'+label+'<select data-v3-filter="'+key+'"><option value="">'+all+'</option>'+opts.map(([value,title])=>'<option value="'+esc(value)+'"'+(String(state[key])===String(value)?' selected':'')+'>'+esc(title)+'</option>').join('')+'</select></label>').join('')+
+ '<span class="v3-filter-count" id="v3-filter-count"></span></div>';
+}
+function v3AttachFilters(tab){
+ const state=v3ListFilters[tab];
+ const apply=()=>{
+  let count=0;
+  p.querySelectorAll('tr[data-v3-row-id]').forEach(row=>{
+   const s=subs.find(x=>String(x.id)===row.dataset.v3RowId);
+   const visible=!!s&&(!state.student||String(s.id)===state.student)&&(!state.school||s.school===state.school)&&(!state.bus||s.busId===state.bus);
+   row.hidden=!visible;if(visible)count++;
+  });
+  const el=p.querySelector('#v3-filter-count');if(el)el.textContent=count+' dossier(s) affiché(s)';
+ };
+ p.querySelectorAll('[data-v3-filter]').forEach(el=>el.onchange=()=>{state[el.dataset.v3Filter]=el.value;apply()});
+ apply();
+}
+
 renderSubs=function(){
  p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button>')+
- table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
- subs.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
+ v3FilterBar('abonnes')+table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
+ subs.map((s,i)=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
+ v3AttachFilters('abonnes');
  p.querySelector('#addSub').onclick=()=>rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});
  p.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editForm('subs',subs[+b.dataset.edit],subFields,b.closest('tr')));
  p.querySelectorAll('[data-clean]').forEach(b=>b.onclick=async()=>{
@@ -949,6 +1013,21 @@ renderSubs=function(){
   const updated={...r,v3Cleaned:true};for(const key of ['school','className','guardian','whatsapp','emergencyPhone','address'])updated[key]='';
   try{await saveRecord('subs',updated,copy(r));}catch(e){alert(formatError(e));}
  });
+};
+
+// Abonnements V3 : sélection élève et enregistrement réel.
+const v3SubscriptionFields=[['plan','Formule'],['partialService','Précision'],['price','Tarif mensuel','number'],['discountPct','Réduction'],['subscriptionStatus','Statut']];
+renderSubscription=function(){
+ p.innerHTML=header('Tableau des abonnements — tous les axes','Choisir un élève puis modifier son abonnement. Enregistrement uniquement dans Firebase V3.')+
+ v3FilterBar('abonnement')+
+ table(['Élève','École','Bus','Formule','Précision','Tarif mensuel','Réduction','Statut','QR','Action'],
+ subs.map(s=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.busId)+'</td><td>'+esc(s.plan||'Standard')+'</td><td>'+esc(s.partialService||'—')+'</td><td>'+cash(s.price)+'</td><td>'+esc(s.paymentV147?.discountPct||0)+' %</td><td>'+esc(s.subscriptionStatus||'À confirmer')+'</td><td><button class="v3-light-qr" data-sub-qr="'+esc(s.id)+'" '+(!s.qrRef?'disabled':'')+'>Voir QR</button></td><td><button class="edit-btn" data-sub-edit="'+esc(s.id)+'">Modifier</button></td></tr>').join(''));
+ v3AttachFilters('abonnement');
+ p.querySelectorAll('[data-sub-edit]').forEach(b=>b.onclick=()=>{
+  const student=subs.find(x=>String(x.id)===b.dataset.subEdit);if(!student)return;
+  editForm('subs',{...student,discountPct:String(student.paymentV147?.discountPct||0)},v3SubscriptionFields,b.closest('tr'));
+ });
+ p.querySelectorAll('[data-sub-qr]').forEach(b=>b.onclick=()=>{const i=subs.findIndex(x=>String(x.id)===b.dataset.subQr);if(i>=0)openBadge(i)});
 };
 const driverFields=[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus (BUS-1/2/3)'],['plate','Immatriculation']];
 renderDrivers=function(){
@@ -1236,18 +1315,41 @@ renderCircuit=function(bus=currentCircuitBus,phase=currentCircuitPhase){
  let content='<div class="v3-live-info">'+(saved?'Ordre enregistré dans Firebase V3.':'Ordre issu des affectations importées : pas encore enregistré comme circuit V3.')+'</div>';
  if(schoolPhase)content+=table(['Ordre','Établissement','Élèves concernés','Déplacer'],schools.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s)+'</td><td>'+students.filter(x=>x.school===s).length+'</td><td><button class="edit-btn" data-cschool="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cschool="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="4">Aucun établissement affecté.</td></tr>');
  else content+=table(['Ordre','Élève','École','Axe','Bus affecté','Adresse / repère','Déplacer'],students.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.serviceZone||s.transportAxe||'—')+'</td><td><select class="v3-circuit-bus" data-student="'+esc(v3StudentKey(s))+'">'+Object.keys(v3BusNames).map(id=>'<option value="'+id+'"'+(id===s.busId?' selected':'')+'>'+esc(v3BusNames[id])+'</option>').join('')+'</select></td><td>'+esc(s.approxPlace||s.district||s.address||'—')+'</td><td><button class="edit-btn" data-cstudent="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cstudent="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="7">Aucun élève affecté à ce bus.</td></tr>');
- content+='<div class="card"><button type="button" class="edit-btn" id="v3-verify-route">Vérifier l’enregistrement dans Firebase V3</button> <span id="v3-route-check" role="status" class="small"></span></div>';
+ if(!schoolPhase)content+='<div class="card"><button type="button" class="btn green" id="v3-save-bus">Enregistrer le changement de bus dans Firebase V3</button> <span class="small">Choisir le nouveau bus, puis enregistrer. Un élève à la fois.</span></div>';
+ content+='<div class="card"><button type="button" class="edit-btn" id="v3-verify-route">Vérifier l’ordre du circuit dans Firebase V3</button> <span id="v3-route-check" role="status" class="small"></span></div>';
  v3CircuitShell(bus,phase,content);
  p.querySelectorAll('[data-cstudent]').forEach(b=>b.onclick=v3CircuitBusy(()=>v3ShiftStudent(bus,phase,Number(b.dataset.cstudent),Number(b.dataset.delta))));
  p.querySelectorAll('[data-cschool]').forEach(b=>b.onclick=v3CircuitBusy(()=>v3ShiftSchool(bus,phase,Number(b.dataset.cschool),Number(b.dataset.delta))));
- p.querySelectorAll('.v3-circuit-bus').forEach(el=>el.onchange=async()=>{
-  const student=subs.find(s=>v3StudentKey(s)===el.dataset.student);if(!student)return;
-  const before=copy(student),updated={...before,busId:el.value};
-  if(!confirm('Changer l’affectation de '+student.name+' vers '+v3BusNames[el.value]+' dans Firebase V3 ?')){el.value=before.busId;return;}
-  el.disabled=true;
-  try{await saveRecord('subs',updated,before);v3CircuitStatus('Affectation du bus enregistrée dans V3.');}
-  catch(err){el.value=before.busId;el.disabled=false;v3CircuitStatus('Affectation refusée : '+formatError(err),true);}
- });
+
+ // Changement explicite : le menu ne modifie aucune donnée avant confirmation.
+ if(!schoolPhase){
+  p.querySelectorAll('.v3-circuit-bus').forEach(el=>el.onchange=()=>{
+   const student=subs.find(x=>v3StudentKey(x)===el.dataset.student);
+   const pending=!!student&&el.value!==student.busId;
+   el.classList.toggle('v3-pending',pending);
+   v3CircuitStatus(pending?'Nouveau bus sélectionné. Clique sur « Enregistrer le changement de bus » pour confirmer.':'');
+  });
+  p.querySelector('#v3-save-bus').onclick=async()=>{
+   if(saveBusy)return;
+   const changes=[...p.querySelectorAll('.v3-circuit-bus')].map(el=>({el,student:subs.find(x=>v3StudentKey(x)===el.dataset.student)})).filter(x=>x.student&&x.el.value!==x.student.busId);
+   if(!changes.length){v3CircuitStatus('Aucun changement de bus à enregistrer.');return;}
+   if(changes.length>1){v3CircuitStatus('Enregistre un seul changement de bus à la fois pour éviter toute erreur.',true);return;}
+   const {el,student}=changes[0],newBus=el.value,before=copy(student);
+   if(!v3BusNames[newBus]){v3CircuitStatus('Bus invalide.',true);return;}
+   if(!confirm('Confirmer le transfert de '+student.name+' : '+v3BusNames[before.busId]+' → '+v3BusNames[newBus]+' ?'))return;
+   el.disabled=true;v3CircuitStatus('Enregistrement du changement de bus en cours…');
+   try{
+    await saveRecord('subs',{...before,busId:newBus},before);
+    const server=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val();
+    if(server!==newBus)throw Error('La relecture du bus ne correspond pas au choix. Contacte la Direction avant de recommencer.');
+    v3CircuitStatus('Transfert de '+student.name+' vers '+v3BusNames[newBus]+' confirmé par Firebase V3. Pour les scans, la Direction doit actualiser la liste des badges dans le module Logistique.');
+   }catch(err){
+    let current=null;try{current=(await initFirebase().database().ref(DATA+'/subs/'+student.id+'/busId').once('value')).val();}catch(_){}
+    if(current===newBus)v3CircuitStatus('Changement de bus enregistré dans V3. La vérification finale du scanner reste à faire.');
+    else{el.value=before.busId;el.disabled=false;v3CircuitStatus('Affectation refusée : '+formatError(err),true);}
+   }
+  };
+ }
  p.querySelector('#v3-verify-route').onclick=async()=>{
   const target=p.querySelector('#v3-route-check');target.textContent='Relecture du serveur…';
   try{await ensureRole();const record=(await initFirebase().database().ref(DATA+'/circuits/'+v3RouteId(bus,phase)).once('value')).val();target.textContent=record?'Enregistrement présent sur Firebase V3 ('+v3GabonTime(record.updatedAt)+').':'Aucun ordre V3 sauvegardé pour cette étape.';}
@@ -1348,6 +1450,25 @@ window.addEventListener('error',e=>{
  else if(e.error)message('Erreur technique de chargement : '+String(e.message||'script').slice(0,180),'error');
 },true);
 window.__G10_V3_LOGIN_BOUND=true;
+gate.querySelector('#v3-reset-password').addEventListener('click',async()=>{
+ const email=gate.querySelector('#v3-email').value.trim();
+ if(!email||!gate.querySelector('#v3-email').checkValidity()){
+  message('Saisis d’abord ton adresse e-mail dans le champ de connexion, puis clique sur ce lien.','error');
+  gate.querySelector('#v3-email').focus();return;
+ }
+ const btn=gate.querySelector('#v3-reset-password');btn.disabled=true;
+ message('Demande de lien de définition du mot de passe…');
+ try{
+  await initFirebase().auth().sendPasswordResetEmail(email);
+  message('Si cette adresse correspond à un compte Firebase, un e-mail de définition du mot de passe a été envoyé. Vérifie aussi les courriers indésirables. Le lien ne doit être ouvert que par sa destinataire.','success');
+ }catch(err){
+  const code=String(err?.code||'');
+  if(code.includes('invalid-email'))message('Adresse e-mail invalide. Vérifie la saisie.','error');
+  else if(code.includes('too-many-requests'))message('Trop de tentatives. Attends avant de redemander un lien.','error');
+  else if(code.includes('network'))message('Erreur réseau : réessaie lorsque la connexion Internet est stable.','error');
+  else message('Envoi impossible pour le moment. Vérifie que la méthode E-mail/mot de passe est activée dans Firebase Authentication.','error');
+ }finally{btn.disabled=false;}
+});
 gate.querySelector('#v3-login-form').addEventListener('submit',async e=>{
  e.preventDefault();const btn=gate.querySelector('#v3-connect');btn.disabled=true;message('Étape 1/3 — vérification des identifiants Firebase…');
  try{
