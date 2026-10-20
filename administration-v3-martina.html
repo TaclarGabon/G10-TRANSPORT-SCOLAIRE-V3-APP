@@ -1606,7 +1606,7 @@ function v3CostISO(date){
 function v3CostWindow(period,iso){
  const d=new Date(iso+'T12:00:00Z');
  const first=new Date(d),last=new Date(d);
- if(period==='week'){const delta=(d.getUTCDay()+6)%7;first.setUTCDate(d.getUTCDate()-delta);last.setUTCDate(first.getUTCDate()+6);}
+ if(period==='week'){const delta=(d.getUTCDay()+6)%7;first.setUTCDate(d.getUTCDate()-delta);last.setTime(first.getTime());last.setUTCDate(last.getUTCDate()+6);}
  else if(period==='fortnight'){first.setUTCDate(d.getUTCDate()<=15?1:16);last.setUTCDate(d.getUTCDate()<=15?15:new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate());}
  else{first.setUTCDate(1);last.setUTCDate(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate());}
  return [first.toISOString().slice(0,10),last.toISOString().slice(0,10)];
