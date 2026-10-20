@@ -848,7 +848,7 @@ function applyV3(data){
  const d=data.importMeta;
  const when=typeof d.importedAt==='number'?new Date(d.importedAt).toLocaleString('fr-FR',{timeZone:'Africa/Libreville'}):'date inconnue';
  statusBar.textContent=subs.length+' abonnés • '+expense.length+' dépenses • '+roles.length+' chauffeurs • '+staff.length+' membres du personnel • '+payments.length+' nouveau(x) paiement(s).';
- note.textContent='Dernière actualisation : '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville).';
+ if(note)note.textContent='Dernière actualisation : '+new Date().toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+' (Libreville).';
  document.querySelector('.space-title-text').textContent='ADMINISTRATION — G10 Transport Scolaire';
  document.title='G10 Transport Scolaire — Administration';
  tabs.style.display='flex';p.style.display='block';
