@@ -891,6 +891,20 @@ async function reloadV3(){
 function validId(id){return typeof id==='string'&&id.length>0&&id.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(id);}
 function freshId(module){return module.toUpperCase()+'-'+initFirebase().database().ref(DATA+'/'+module).push().key;}
 function formatError(e){return (e?.code||e?.message||String(e))+(String(e?.code||'').includes('PERMISSION_DENIED')?' — vérifie les règles Firebase V3 et les champs createdAt / updatedAt.':'');}
+function mergeSubscriptionEdit(current,baseline,record,changedFields){
+ const conflicts=changedFields.filter(key=>{
+  const baselineValue=key==='discountPct'?baseline.paymentV147?.discountPct:baseline[key];
+  const currentValue=key==='discountPct'?current?.paymentV147?.discountPct:current?.[key];
+  return stable(currentValue)!==stable(baselineValue);
+ });
+ if(conflicts.length)return {conflicts,record:null};
+ const merged={...(current||{})};
+ for(const key of changedFields){
+  if(key==='discountPct')merged.paymentV147={...(current?.paymentV147||{}),discountPct:record.paymentV147?.discountPct};
+  else merged[key]=record[key];
+ }
+ return {conflicts:[],record:merged};
+}
 async function saveRecord(module,record,before=null,changedFields=null){
  if(!['subs','payments','expenses','drivers','staff','circuits','movements'].includes(module))throw Error('Module V3 non autorisé.');
  if(saveBusy)throw Error('Une sauvegarde est déjà en cours.');
@@ -905,21 +919,14 @@ async function saveRecord(module,record,before=null,changedFields=null){
    const baseline=v3OriginalRecords[module]?.get(String(record.id));
    if(!baseline)throw Error('Cette fiche n’existe plus dans la copie chargée. Actualise la V3 avant de modifier.');
    if(stable(current)!==stable(baseline)){
+    if(current==null)throw Error('Cette fiche n’existe plus dans Firebase V3. Actualise les données avant de continuer.');
     if(module==='subs'&&Array.isArray(changedFields)){
-     const conflicts=changedFields.filter(key=>{
-      const baselineValue=key==='discountPct'?baseline.paymentV147?.discountPct:baseline[key];
-      const currentValue=key==='discountPct'?current?.paymentV147?.discountPct:current?.[key];
-      return stable(currentValue)!==stable(baselineValue);
-     });
-     if(conflicts.length){
+     const merged=mergeSubscriptionEdit(current,baseline,record,changedFields);
+     if(merged.conflicts.length){
       const names={price:'le tarif',plan:'la formule',partialService:'la précision',discountPct:'la réduction',subscriptionStatus:'le statut'};
-      throw Error('La fiche a changé dans une autre session sur '+conflicts.map(key=>names[key]||'un champ modifié').join(', ')+'. Ta saisie reste affichée. Actualise les données et vérifie la valeur avant de réessayer.');
+      throw Error('La fiche a changé dans une autre session sur '+merged.conflicts.map(key=>names[key]||'un champ modifié').join(', ')+'. Ta saisie reste affichée. Actualise les données et vérifie la valeur avant de réessayer.');
      }
-     payloadRecord={...(current||{})};
-     for(const key of changedFields){
-      if(key==='discountPct')payloadRecord.paymentV147={...(current?.paymentV147||{}),discountPct:record.paymentV147?.discountPct};
-      else payloadRecord[key]=record[key];
-     }
+     payloadRecord=merged.record;
     }else throw Error('Cette fiche a changé depuis son ouverture. Actualise la V3 avant de modifier.');
    }
   }
@@ -998,6 +1005,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   if(module==='payments'&&(!updated.studentId||!updated.date||!/^\d{4}-\d{2}$/.test(updated.month)||!Number.isFinite(updated.amount)||updated.amount<=0))return error.textContent='Élève, date, mois et montant positif obligatoires.';
   if(module==='expenses'&&expense.some(x=>String(x.id)!==String(updated.id)&&updated.invoiceNumber&&x.invoiceNumber&&String(x.invoiceNumber).trim().toLowerCase()===String(updated.invoiceNumber).trim().toLowerCase()&&String(x.vendor||'').trim().toLowerCase()===String(updated.vendor||'').trim().toLowerCase()))return error.textContent='Facture déjà présente pour ce fournisseur dans V3 : doublon bloqué.';
   if(updated.busId&&!busList.includes(updated.busId))return error.textContent='Bus invalide : BUS-1, BUS-2 ou BUS-3.';
+  if(module==='subs'&&!isNew&&changedFields.length===0){message('Aucune modification à enregistrer.');tr.remove();return;}
   submit.disabled=true;error.textContent='Sauvegarde en cours…';
   try{await saveRecord(module,updated,isNew?null:copy(record),changedFields);}
   catch(err){error.textContent=formatError(err);submit.disabled=false;}
