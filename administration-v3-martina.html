@@ -936,7 +936,12 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
    key==='status'&&module==='expenses'?[...new Set(['À vérifier','Validée','Confirmée',...expense.map(x=>x.status),record.status].filter(Boolean))].map(x=>[x,x]):null;
   const input=document.createElement(choices?'select':'input');input.name=key;
   if(choices){for(const [value,label] of choices){const option=document.createElement('option');option.value=value;option.textContent=label;input.appendChild(option);}}
-  else{input.type=type||'text';if(type==='number'){input.min='0';input.step='1';}}
+  else{
+   const decimalLitres=module==='expenses'&&key==='litres';
+   input.type=decimalLitres?'text':(type||'text');
+   if(decimalLitres){input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex. 12,5';input.setAttribute('aria-label','Litres (virgule ou point accepté)');}
+   else if(type==='number'){input.min='0';input.step='1';}
+  }
   input.value=record[key]??'';box.appendChild(input);
   if(key==='school'&&choices){
    const custom=document.createElement('input');custom.name='schoolCustom';custom.placeholder='Nom du nouvel établissement';custom.hidden=true;
@@ -954,7 +959,11 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   for(const [key,,type] of fields){
    let value=form.elements.namedItem(key).value.trim();
    if(key==='school'&&value==='__other__')value=form.elements.namedItem('schoolCustom').value.trim();
-   updated[key]=type==='number'?Number(value):value;
+   if(module==='expenses'&&key==='litres'){
+    const decimalText=value.replace(/\s/g,'').replace(',','.');
+    if(decimalText!==''&&!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(decimalText))return error.textContent='Saisis les litres avec un nombre positif et une virgule ou un point pour les décimales.';
+    updated[key]=decimalText===''?0:Number(decimalText);
+   }else updated[key]=type==='number'?Number(value):value;
   }
   if(module==='subs'&&Object.prototype.hasOwnProperty.call(updated,'discountPct')){
    updated.paymentV147={...(updated.paymentV147||{}),discountPct:Number(updated.discountPct)};
@@ -965,6 +974,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   if(module==='subs'&&updated.price!==undefined&&(!Number.isFinite(Number(updated.price))||Number(updated.price)<0))return error.textContent='Tarif invalide.';
   if(['drivers','staff'].includes(module)&&!updated.name?.trim())return error.textContent='Nom obligatoire.';
   if(module==='expenses'&&(!updated.type?.trim()||!updated.date||!Number.isFinite(updated.amount)||updated.amount<0))return error.textContent='Type, date et montant valide obligatoires.';
+  if(module==='expenses'&&(!Number.isFinite(updated.litres)||updated.litres<0))return error.textContent='Le nombre de litres doit être égal ou supérieur à zéro.';
   if(module==='payments'&&(!updated.studentId||!updated.date||!/^\d{4}-\d{2}$/.test(updated.month)||!Number.isFinite(updated.amount)||updated.amount<=0))return error.textContent='Élève, date, mois et montant positif obligatoires.';
   if(module==='expenses'&&expense.some(x=>String(x.id)!==String(updated.id)&&updated.invoiceNumber&&x.invoiceNumber&&String(x.invoiceNumber).trim().toLowerCase()===String(updated.invoiceNumber).trim().toLowerCase()&&String(x.vendor||'').trim().toLowerCase()===String(updated.vendor||'').trim().toLowerCase()))return error.textContent='Facture déjà présente pour ce fournisseur dans V3 : doublon bloqué.';
   if(updated.busId&&!busList.includes(updated.busId))return error.textContent='Bus invalide : BUS-1, BUS-2 ou BUS-3.';
