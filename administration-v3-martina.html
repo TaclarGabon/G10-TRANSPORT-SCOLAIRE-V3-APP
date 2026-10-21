@@ -891,7 +891,7 @@ async function reloadV3(){
 function validId(id){return typeof id==='string'&&id.length>0&&id.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(id);}
 function freshId(module){return module.toUpperCase()+'-'+initFirebase().database().ref(DATA+'/'+module).push().key;}
 function formatError(e){return (e?.code||e?.message||String(e))+(String(e?.code||'').includes('PERMISSION_DENIED')?' — vérifie les règles Firebase V3 et les champs createdAt / updatedAt.':'');}
-async function saveRecord(module,record,before=null){
+async function saveRecord(module,record,before=null,changedFields=null){
  if(!['subs','payments','expenses','drivers','staff','circuits','movements'].includes(module))throw Error('Module V3 non autorisé.');
  if(saveBusy)throw Error('Une sauvegarde est déjà en cours.');
  if(!validId(String(record.id)))throw Error('Identifiant invalide.');
@@ -900,12 +900,31 @@ async function saveRecord(module,record,before=null){
  try{
   const current=(await ref.once('value')).val();
   if(before===null&&current!==null)throw Error('Identifiant déjà utilisé : aucun écrasement.');
+  let payloadRecord=record;
   if(before!==null){
    const baseline=v3OriginalRecords[module]?.get(String(record.id));
-   if(!baseline||stable(current)!==stable(baseline))throw Error('Cette fiche a changé depuis son ouverture. Actualise la V3 avant de modifier.');
+   if(!baseline)throw Error('Cette fiche n’existe plus dans la copie chargée. Actualise la V3 avant de modifier.');
+   if(stable(current)!==stable(baseline)){
+    if(module==='subs'&&Array.isArray(changedFields)){
+     const conflicts=changedFields.filter(key=>{
+      const baselineValue=key==='discountPct'?baseline.paymentV147?.discountPct:baseline[key];
+      const currentValue=key==='discountPct'?current?.paymentV147?.discountPct:current?.[key];
+      return stable(currentValue)!==stable(baselineValue);
+     });
+     if(conflicts.length){
+      const names={price:'le tarif',plan:'la formule',partialService:'la précision',discountPct:'la réduction',subscriptionStatus:'le statut'};
+      throw Error('La fiche a changé dans une autre session sur '+conflicts.map(key=>names[key]||'un champ modifié').join(', ')+'. Ta saisie reste affichée. Actualise les données et vérifie la valeur avant de réessayer.');
+     }
+     payloadRecord={...(current||{})};
+     for(const key of changedFields){
+      if(key==='discountPct')payloadRecord.paymentV147={...(current?.paymentV147||{}),discountPct:record.paymentV147?.discountPct};
+      else payloadRecord[key]=record[key];
+     }
+    }else throw Error('Cette fiche a changé depuis son ouverture. Actualise la V3 avant de modifier.');
+   }
   }
   const stamp=firebase.database.ServerValue.TIMESTAMP;
-  const payload={...record,id:String(record.id),updatedBy:user.uid,updatedAt:stamp};
+  const payload={...payloadRecord,id:String(record.id),updatedBy:user.uid,updatedAt:stamp};
   if(current&&typeof current.createdAt==='number')payload.createdAt=current.createdAt;
   else{
    if(current&&current.createdAt!=null)payload.legacyCreatedAt=String(current.createdAt);
@@ -955,7 +974,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
  const error=document.createElement('div');error.setAttribute('role','alert');error.style.cssText='color:#a11b27;font-size:12px;width:100%';form.appendChild(error);
  form.onsubmit=async e=>{
   e.preventDefault();if(saveBusy)return;
-  const updated={...record};
+  const updated={...record},changedFields=[];
   for(const [key,,type] of fields){
    let value=form.elements.namedItem(key).value.trim();
    if(key==='school'&&value==='__other__')value=form.elements.namedItem('schoolCustom').value.trim();
@@ -964,6 +983,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
     if(decimalText!==''&&!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(decimalText))return error.textContent='Saisis les litres avec un nombre positif et une virgule ou un point pour les décimales.';
     updated[key]=decimalText===''?0:Number(decimalText);
    }else updated[key]=type==='number'?Number(value):value;
+   if(module==='subs'&&stable(updated[key])!==stable(record[key]))changedFields.push(key);
   }
   if(module==='subs'&&Object.prototype.hasOwnProperty.call(updated,'discountPct')){
    updated.paymentV147={...(updated.paymentV147||{}),discountPct:Number(updated.discountPct)};
@@ -979,7 +999,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   if(module==='expenses'&&expense.some(x=>String(x.id)!==String(updated.id)&&updated.invoiceNumber&&x.invoiceNumber&&String(x.invoiceNumber).trim().toLowerCase()===String(updated.invoiceNumber).trim().toLowerCase()&&String(x.vendor||'').trim().toLowerCase()===String(updated.vendor||'').trim().toLowerCase()))return error.textContent='Facture déjà présente pour ce fournisseur dans V3 : doublon bloqué.';
   if(updated.busId&&!busList.includes(updated.busId))return error.textContent='Bus invalide : BUS-1, BUS-2 ou BUS-3.';
   submit.disabled=true;error.textContent='Sauvegarde en cours…';
-  try{await saveRecord(module,updated,isNew?null:copy(record));}
+  try{await saveRecord(module,updated,isNew?null:copy(record),changedFields);}
   catch(err){error.textContent=formatError(err);submit.disabled=false;}
  };
  td.appendChild(form);tr.appendChild(td);
