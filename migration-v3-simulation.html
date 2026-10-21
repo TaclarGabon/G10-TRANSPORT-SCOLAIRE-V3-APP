@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<title>G10 V3 — Simulation hors ligne</title>
+<body>
+<main>
+  <h1>G10 V3 — Préparation de la migration</h1>
+  <p>Simulation sur des données entièrement fictives. Aucune connexion Firebase, aucun import, aucune écriture.</p>
+  <p>Les abonnés déjà migrés et les mouvements QR sont exclus. Les candidats ne constituent pas une autorisation de migration.</p>
+  <button id="simulate" type="button">Simuler avec l’exemple fictif</button>
+  <pre id="result" role="status" aria-live="polite">En attente de simulation.</pre>
+  <p>La validation métier des dépenses, circuits et paiements reste nécessaire. Les événements et journaux ne sont pas considérés comme des paiements.</p>
+</main>
+<script src="firebase/v3-migration-plan.js"></script>
+<script src="firebase/v3-simulation-ui.js"></script>
+</body>
+</html>
