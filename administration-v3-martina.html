@@ -960,8 +960,8 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
    let value=form.elements.namedItem(key).value.trim();
    if(key==='school'&&value==='__other__')value=form.elements.namedItem('schoolCustom').value.trim();
    if(module==='expenses'&&key==='litres'){
-    const decimalText=value.replace(/\\s/g,'').replace(',','.');
-    if(decimalText!==''&&!/^(?:\\d+(?:\\.\\d*)?|\\.\\d+)$/.test(decimalText))return error.textContent='Saisis les litres avec un nombre positif et une virgule ou un point pour les décimales.';
+    const decimalText=value.replace(/\s/g,'').replace(',','.');
+    if(decimalText!==''&&!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(decimalText))return error.textContent='Saisis les litres avec un nombre positif et une virgule ou un point pour les décimales.';
     updated[key]=decimalText===''?0:Number(decimalText);
    }else updated[key]=type==='number'?Number(value):value;
   }
