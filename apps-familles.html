@@ -27,11 +27,24 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 <button id="enterStudent" class="choice"><strong>🎓 Espace Étudiants</strong><span>À partir de la seconde — activation ultérieure</span></button>
 <p class="muted">L'application montre uniquement les informations de transport de ta famille.</p></section>
 <section id="activation" class="hidden">
-<button id="backA" class="secondary">← Accueil</button><h2>Mon accès Parents</h2><div class="card">
-<p>Pour accéder à ton espace, ouvre le <b>lien personnel</b> que G10 t'a envoyé sur WhatsApp.</p>
-<div id="inviteInfo" class="note">Aucune adresse e-mail et aucun mot de passe Direction ne sont nécessaires.</div>
-<p><button id="activate" class="primary hidden">Activer mon accès familial</button></p><p id="activateStatus" class="muted" role="status"></p>
-</div><p class="muted">Le lien ne fonctionne qu'une fois. Ton téléphone restera connecté après l'activation ; sur un nouvel appareil, demande un autre lien à G10.</p>
+<button id="backA" class="secondary">← Accueil</button><h2>Accès Parent</h2>
+<div class="card">
+<p>Pour votre première connexion, indiquez <b>votre numéro enregistré chez G10</b>. Vous recevrez un code de vérification sur WhatsApp.</p>
+<label for="parentNumber" style="display:block;font-weight:750;margin:14px 0 7px">Numéro du parent</label>
+<div style="display:flex;gap:8px;align-items:center">
+ <span style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;background:#eaf3fb;font-weight:750">+241</span>
+ <input id="parentNumber" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="11" placeholder="77 04 38 39" aria-label="Huit chiffres du téléphone gabonais" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%;min-width:0">
+</div>
+<p class="muted">Les 8 chiffres sont regroupés par deux. Aucun nom d'enfant ni e-mail à saisir.</p>
+<p><button id="sendCode" class="primary" type="button">Recevoir mon code sur WhatsApp</button></p>
+<div id="codeZone" class="hidden">
+ <label for="parentCode" style="display:block;font-weight:750;margin:16px 0 7px">Code reçu sur WhatsApp</label>
+ <input id="parentCode" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="10" placeholder="Code de vérification" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%">
+ <p><button id="verifyCode" class="primary" type="button">Continuer</button></p>
+</div>
+<p id="activateStatus" class="note" role="status">L'envoi WhatsApp réel n'est pas encore activé pour les familles : G10 termine le raccordement sécurisé.</p>
+</div>
+<p class="muted">Après vérification, votre session restera ouverte sur cet appareil. Vous ne recevrez pas de nouveau code à chaque visite. Un code pourra être redemandé après déconnexion, changement d'appareil ou expiration de la session.</p>
 </section>
 <section id="parentSpace" class="hidden">
 <div class="row"><button id="backB" class="secondary">← Accueil</button><button id="signOut" class="secondary">Déconnexion</button></div>
@@ -50,13 +63,13 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 (()=>{"use strict";
 const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);
-let auth,activateFn,getFn,secret="",activating=false,loading=false,timer=null;
+let auth,sendPhoneCodeFn,checkPhoneCodeFn,getFn,loginPhone="",activating=false,loading=false,timer=null;
 const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
 function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
 function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
 function dayGab(){const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Libreville",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day}
 function timeGab(ms){return Number.isFinite(Number(ms))?new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit"}).format(new Date(Number(ms))):"Heure non disponible"}
-function friendly(e){const k=String(e?.code||"");if(k.includes("not-found")||k.includes("unavailable"))return "Le service d'accès familial doit encore être activé par G10.";if(k.includes("failed-precondition"))return "Lien expiré ou déjà utilisé. Demande un nouveau lien à G10.";if(k.includes("permission-denied"))return "Ce compte n'a pas accès à un dossier familial actif. Contacte G10.";return String(e?.message||"Erreur de connexion")}
+function friendly(e){const k=String(e?.code||"");if(k.includes("not-found")||k.includes("unavailable")||k.includes("internal"))return "Le service WhatsApp familial doit encore être activé par G10. Aucun code envoyé confirmé.";if(k.includes("failed-precondition"))return "Lien expiré ou déjà utilisé. Demande un nouveau lien à G10.";if(k.includes("permission-denied"))return "Ce compte n'a pas accès à un dossier familial actif. Contacte G10.";return String(e?.message||"Erreur de connexion")}
 function textNode(cls,txt){const n=document.createElement("div");n.className=cls;n.textContent=txt;return n}
 function childCard(c){
  const host=document.createElement("section");host.className="card";
@@ -100,32 +113,57 @@ $("backA").onclick=$("backB").onclick=()=>{message("");show("home")};
 $("day").value=dayGab();$("today").onclick=()=>{$("day").value=dayGab();load()};
 $("day").onchange=$("reload").onclick=load;
 $("signOut").onclick=async()=>{
- if(!confirm("Se déconnecter ? Il faudra demander un nouveau lien d'accès à G10 sur cet appareil."))return;
- await auth.signOut();show("activation");$("inviteInfo").textContent="Demande un nouveau lien personnel à G10.";
+ if(!confirm("Se déconnecter ? Une nouvelle vérification WhatsApp sera nécessaire lors de ta prochaine connexion."))return;
+ await auth.signOut();loginPhone="";$("parentCode").value="";$("codeZone").classList.add("hidden");show("activation");
 };
-$("activate").onclick=async()=>{
- if(activating||!secret)return;
- activating=true;$("activate").disabled=true;$("activateStatus").textContent="Activation en cours…";
+$("parentNumber").oninput=()=>{
+ const raw=$("parentNumber").value.replace(/\D/g,"").slice(0,8);
+ $("parentNumber").value=raw.match(/.{1,2}/g)?.join(" ")||"";
+};
+function phone(){
+ const digits=$("parentNumber").value.replace(/\D/g,"");
+ if(digits.length!==8)throw Error("Saisis les huit chiffres de ton numéro gabonais.");
+ return "+241"+digits;
+}
+$("sendCode").onclick=async()=>{
+ if(activating)return;
+ let p;try{p=phone()}catch(e){$("activateStatus").textContent=e.message;return}
+ activating=true;$("sendCode").disabled=true;
+ $("activateStatus").textContent="Demande de code WhatsApp en cours…";
  try{
-  const result=await activateFn({token:secret});
-  secret="";history.replaceState(null,"",location.pathname+location.search);
-  await auth.signInWithCustomToken(result.data.customToken);
-  $("activateStatus").textContent="Accès activé.";
+  const result=await sendPhoneCodeFn({phone:p});
+  if(result.data?.requested!==true)throw Error("L'envoi du code n'est pas confirmé.");
+  loginPhone=p;$("codeZone").classList.remove("hidden");
+  $("activateStatus").textContent="Si ce numéro est bien inscrit chez G10, vous allez recevoir un code sur WhatsApp. Saisissez-le ci-dessous.";
  }catch(e){$("activateStatus").textContent=friendly(e)}
- finally{activating=false;$("activate").disabled=false}
+ finally{activating=false;$("sendCode").disabled=false}
 };
-secret=new URLSearchParams(location.hash.slice(1)).get("activation")||"";
-if(secret){$("activate").classList.remove("hidden");$("inviteInfo").textContent="Lien personnel G10 reconnu. Clique sur Activer mon accès familial.";show("activation")}
+$("verifyCode").onclick=async()=>{
+ if(activating||!loginPhone)return;
+ const code=$("parentCode").value.replace(/\s/g,"");
+ if(!/^\d{4,10}$/.test(code)){$("activateStatus").textContent="Saisis le code reçu sur WhatsApp.";return}
+ activating=true;$("verifyCode").disabled=true;
+ $("activateStatus").textContent="Vérification sécurisée du code…";
+ try{
+  const result=await checkPhoneCodeFn({phone:loginPhone,code});
+  if(!result.data?.customToken)throw Error("Code non validé.");
+  await auth.signInWithCustomToken(result.data.customToken);
+  loginPhone="";$("parentCode").value="";
+  $("activateStatus").textContent="Téléphone vérifié. Connexion familiale activée.";
+ }catch(e){$("activateStatus").textContent=friendly(e)}
+ finally{activating=false;$("verifyCode").disabled=false}
+};
 if(!window.firebase?.auth||!window.firebase?.functions){message("Services Firebase indisponibles. Vérifie Internet.");return}
 const app=firebase.apps.find(a=>a.name==="g10-family-app")||firebase.initializeApp(config,"g10-family-app");
 auth=app.auth();const fn=app.functions("europe-west1");
-activateFn=fn.httpsCallable("activateG10ParentInvitation");
+sendPhoneCodeFn=fn.httpsCallable("startG10ParentPhoneLogin");
+checkPhoneCodeFn=fn.httpsCallable("checkG10ParentPhoneLogin");
 getFn=fn.httpsCallable("getG10MyTransport");
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
  auth.onAuthStateChanged(user=>{
   if(timer){clearInterval(timer);timer=null}
-  if(user){secret="";history.replaceState(null,"",location.pathname+location.search);show("parentSpace");load();timer=setInterval(()=>{if(!document.hidden)load()},30000)}
-  else if(!secret)show("home");
+  if(user){show("parentSpace");load();timer=setInterval(()=>{if(!document.hidden)load()},30000)}
+  else show("home");
  });
 }).catch(e=>message(friendly(e)));
 })();
