@@ -169,7 +169,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-header-select{min-width:120px;max-width:210px;width:100%;border:1px solid #b5cee8;border-radius:7px;padding:6px 8px;background:#fff;color:#143a63;font-weight:600;font-size:11px}
 .v3-header-select:focus,.v3-filter-bar select:focus{outline:2px solid #176fd1;outline-offset:1px}
 .v3-filter-bar .edit-btn{align-self:end;white-space:nowrap}
-</style></head><body>
+.v3-expense-sections{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.v3-expense-sections button{border:1px solid #bfd4e8;background:#fff;color:#16416b;border-radius:9px;padding:10px 14px;font-weight:850;cursor:pointer}.v3-expense-sections button.active{background:#176fd1;color:#fff}.v3-expense-note{border:1px solid #ead79b;background:#fff9e8;color:#715a20;padding:11px;border-radius:9px;margin:8px 0;font-size:11px}.v3-expense-details>summary{cursor:pointer;font-weight:850;color:#123d78;padding:8px}.v3-payroll-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;align-items:end}.v3-payroll-form label{display:grid;gap:5px;font-weight:800;font-size:11px}.v3-payroll-form input,.v3-payroll-form select{border:1px solid #cbdbe9;border-radius:8px;padding:9px}.v3-receipt-link{border:0;border-radius:7px;padding:7px;background:#e6f1fb;color:#114f87;font-weight:800;cursor:pointer}.v3-payroll-actions{display:flex;gap:6px;flex-wrap:wrap}.v3-payroll-actions button{border:0;border-radius:7px;padding:7px 9px;font-weight:800;cursor:pointer;background:#e6f1fb;color:#123d78}.v3-payroll-actions .pay-confirm{background:#11a85f;color:#fff}@media(max-width:700px){.v3-expense-sections button{flex:1}}</style></head><body>
 <div class="space-titlebar"><div><div class="space-title-kicker">G10 TRANSPORT SCOLAIRE — ZONE AKANDA</div><div class="space-title-text">ADMINISTRATION — G10 Transport Scolaire</div></div><div><button type="button" onclick="window.location.href='accueil-v3.html'">Accueil</button></div></div>
 <section class="card" id="v3-v3-connection" aria-label="Connexion à l'administration G10"><h2>Administration</h2><p>Connecte-toi avec ton compte G10 pour accéder aux dossiers.</p><form id="v3-login-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="email" id="v3-email" required autocomplete="username" placeholder="Adresse e-mail" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:230px"><input type="password" id="v3-password" required autocomplete="current-password" placeholder="Mot de passe" style="padding:10px;border:1px solid #cbdbe9;border-radius:8px;min-width:200px"><button type="submit" class="btn green" id="v3-connect">Se connecter</button></form><div style="margin:8px 0 4px"><button id="v3-reset-password" type="button" style="border:0;background:none;color:#1765b5;text-decoration:underline;cursor:pointer;padding:5px 0;font-weight:700">Définir ou réinitialiser mon mot de passe V3</button></div><div id="v3-auth-status" role="status" aria-live="polite" style="padding:12px;margin:10px 0;color:#123d78;background:#f1f7ff;border:1px solid #bfd5ec;border-radius:10px;font-weight:700">Saisis ton adresse e-mail et ton mot de passe, puis clique sur « Se connecter ».</div><div style="color:#61778d;font-size:11px;margin-top:5px" id="g10-build-label">Administration G10 — édition 20 octobre, connexion vérifiable</div><button id="v3-refresh" type="button" class="edit-btn" hidden>Actualiser les données</button> <button id="v3-signout" type="button" class="clean-btn" hidden>Se déconnecter</button></section>
 <script>
@@ -430,7 +430,7 @@ function showChauffeurs(){
  renderDrivers();
 }
 function renderDrivers(){p.innerHTML=header('Chauffeurs — tous les axes','Chauffeurs et bus affectés.','<button class="btn green" id="addDriver">+ Ajouter un chauffeur</button>')+table(['Nom','Téléphone','Zone','Bus affecté','Plaque','Action'],roles.map((d,i)=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.phone)+'</td><td>'+esc(d.zone)+'</td><td>'+sel(busList,d.busId||(['BUS-1','BUS-2','BUS-3'][i]),'driverBus',i)+'</td><td>'+esc(d.plate)+'</td><td><button class="edit-btn" data-driver="'+i+'">Modifier</button></td></tr>').join(''));bindFields();p.querySelectorAll('[data-driver]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),roles[+b.dataset.driver],[['name','Nom du chauffeur'],['phone','Téléphone'],['zone','Zone'],['plate','Plaque']],renderDrivers));p.querySelector('#addDriver').onclick=()=>{roles.push({name:'',phone:'',zone:'Akanda',plate:'',busId:'BUS-1',active:true});renderDrivers();p.querySelector('[data-driver="'+(roles.length-1)+'"]').click()}}
-function renderStaff(){p.innerHTML=header('Staff — départements','Direction, Gestion et Administration.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button>')+table(['Nom','Département','Téléphone','Action'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td><button class="edit-btn" data-staff="'+i+'">Modifier</button></td></tr>').join(''));p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),staff[+b.dataset.staff],[['name','Nom complet'],['department','Département'],['phone','Téléphone']],renderStaff));p.querySelector('#addStaff').onclick=()=>{staff.push({name:'',department:'',phone:''});renderStaff();p.querySelector('[data-staff="'+(staff.length-1)+'"]').click()}}
+function renderStaff(){p.innerHTML=header('Staff — départements','Direction, Gestion et Administration.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button>')+table(['Nom','Département','Téléphone','Action'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td><button class="edit-btn" data-staff="'+i+'">Modifier</button></td></tr>').join(''));p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),staff[+b.dataset.staff],[['name','Nom complet'],['department','Département'],['phone','Téléphone'],['salaryMonthly','Salaire fixe mensuel (FCFA)','number']],renderStaff));p.querySelector('#addStaff').onclick=()=>{staff.push({name:'',department:'',phone:''});renderStaff();p.querySelector('[data-staff="'+(staff.length-1)+'"]').click()}}
 function renderExpenses(){
  const t=expenseTotals();
  document.getElementById('fuelTotal').textContent=expenseMoney(t.fuel);
@@ -675,16 +675,16 @@ function renderCircuit(bus='BUS-1',phase='pickupAM'){
 }
 
 function renderReports(){const v=sums(),confirmed=subs.filter(s=>s.subscriptionStatus==='Confirmé').length;p.innerHTML=header('Rapports — Zone Akanda','Indicateurs calculés à partir des fiches V2 chargées ; rapprochement comptable à confirmer.')+'<div class="report-stats"><div class="report-stat green-outline"><div class="small">Entrées encaissées</div><strong>'+cash(v.received)+'</strong></div><div class="report-stat red-outline"><div class="small">Dépenses validées</div><strong>'+cash(v.valid)+'</strong></div><div class="report-stat blue-outline"><div class="small">Solde net indicatif</div><strong>'+cash(v.received-v.valid)+'</strong></div><div class="report-stat yellow-outline"><div class="small">Abonnements confirmés</div><strong>'+confirmed+'</strong></div><div class="report-stat yellow-outline"><div class="small">Dépenses à vérifier</div><strong>'+cash(v.wait)+'</strong></div></div>'+table(['Enfant','Formule','Date','Montant encaissé','Statut'],subs.map(s=>'<tr><td>'+esc(s.name)+'</td><td>'+esc(s.plan)+'</td><td>'+esc(s.paymentDate||'')+'</td><td>'+cash(s.amountReceived)+'</td><td>'+esc(s.payment)+'</td></tr>').join(''))+'<h3>Sorties — dépenses des véhicules</h3>'+table(['Date','Nature','Montant','Statut'],expense.map(e=>'<tr><td>'+esc(e.date)+'</td><td>'+esc(e.type)+'</td><td>'+cash(e.amount)+'</td><td>'+esc(e.status)+'</td></tr>').join(''))}
-function renderDrivers(){p.innerHTML=header('Chauffeurs — tous les axes','Ajouter, corriger ou désactiver une fiche de chauffeur.','<button class="btn green" id="addDriver">+ Ajouter un chauffeur</button>')+table(['Nom','Téléphone','Zone','Bus affecté','Plaque','Actions'],roles.map((d,i)=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.phone)+'</td><td>'+esc(d.zone)+'</td><td>'+sel(busList,d.busId||busList[i]||'BUS-1','driverBus',i)+'</td><td>'+esc(d.plate)+'</td><td class="v3-inline-actions"><button class="edit-btn" data-driver="'+i+'">Modifier</button> <button class="clean-btn" data-delete-driver="'+i+'">Supprimer</button></td></tr>').join(''));bindFields();
- p.querySelectorAll('[data-driver]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),roles[+b.dataset.driver],[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus affecté (BUS-1 / BUS-2 / BUS-3)'],['plate','Immatriculation']],renderDrivers));
+function renderDrivers(){p.innerHTML=header('Chauffeurs — tous les axes','Ajouter, corriger ou désactiver une fiche de chauffeur.','<button class="btn green" id="addDriver">+ Ajouter un chauffeur</button>')+table(['Nom','Téléphone','Zone','Bus affecté','Plaque','Salaire fixe mensuel','Actions'],roles.map((d,i)=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.phone)+'</td><td>'+esc(d.zone)+'</td><td>'+sel(busList,d.busId||busList[i]||'BUS-1','driverBus',i)+'</td><td>'+esc(d.plate)+'</td><td>'+cash(d.salaryMonthly||0)+'</td><td class="v3-inline-actions"><button class="edit-btn" data-driver="'+i+'">Modifier</button> <button class="clean-btn" data-delete-driver="'+i+'">Supprimer</button></td></tr>').join(''));bindFields();
+ p.querySelectorAll('[data-driver]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),roles[+b.dataset.driver],[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus affecté (BUS-1 / BUS-2 / BUS-3)'],['plate','Immatriculation'],['salaryMonthly','Salaire fixe mensuel (FCFA)','number']],renderDrivers));
  p.querySelectorAll('[data-delete-driver]').forEach(b=>b.onclick=()=>{const d=roles[+b.dataset.deleteDriver];if(!confirmTwice('le chauffeur '+d.name))return;const before=JSON.parse(JSON.stringify(d));d.active=false;d.v3Archived=true;audit('Archivage','chauffeur',d,before);mark();renderDrivers()});
- p.querySelector('#addDriver').onclick=()=>{const d={id:'DRV-V3-LOCAL-'+(roles.length+1),name:'',phone:'',zone:'Akanda',busId:'BUS-1',plate:'',active:true};const host=p.querySelector('tbody tr:last-child')||p.querySelector('thead tr');inlineEditor(host,d,[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus affecté'],['plate','Immatriculation']],renderDrivers,patch=>{if(!String(patch.name||'').trim()){alert('Le nom est obligatoire.');return false}Object.assign(d,patch);roles.push(d);audit('Ajout','chauffeur',d,{});mark();return true})};
+ p.querySelector('#addDriver').onclick=()=>{const d={id:'DRV-V3-LOCAL-'+(roles.length+1),name:'',phone:'',zone:'Akanda',busId:'BUS-1',plate:'',salaryMonthly:0,active:true};const host=p.querySelector('tbody tr:last-child')||p.querySelector('thead tr');inlineEditor(host,d,[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus affecté'],['plate','Immatriculation'],['salaryMonthly','Salaire fixe mensuel (FCFA)','number']],renderDrivers,patch=>{if(!String(patch.name||'').trim()){alert('Le nom est obligatoire.');return false}Object.assign(d,patch);roles.push(d);audit('Ajout','chauffeur',d,{});mark();return true})};
 }
 
-function renderStaff(){p.innerHTML=header('Staff — départements','Direction, Gestion et Administration.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button>')+table(['Nom','Département','Téléphone','Actions'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td class="v3-inline-actions"><button class="edit-btn" data-staff="'+i+'">Modifier</button> <button class="clean-btn" data-delete-staff="'+i+'">Supprimer</button></td></tr>').join(''));
+function renderStaff(){p.innerHTML=header('Staff — départements','Direction, Gestion et Administration.','<button class="btn green" id="addStaff">+ Ajouter un membre du staff</button>')+table(['Nom','Département','Téléphone','Salaire fixe mensuel','Actions'],staff.map((s,i)=>'<tr><td>'+esc(s.name||[s.firstName,s.lastName].filter(Boolean).join(' '))+'</td><td>'+esc(s.department)+'</td><td>'+esc(s.phone)+'</td><td>'+cash(s.salaryMonthly||0)+'</td><td class="v3-inline-actions"><button class="edit-btn" data-staff="'+i+'">Modifier</button> <button class="clean-btn" data-delete-staff="'+i+'">Supprimer</button></td></tr>').join(''));
  p.querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>inlineEditor(b.closest('tr'),staff[+b.dataset.staff],[['name','Nom complet'],['department','Département'],['phone','Téléphone']],renderStaff));
  p.querySelectorAll('[data-delete-staff]').forEach(b=>b.onclick=()=>{const d=staff[+b.dataset.deleteStaff];if(!confirmTwice('le membre du staff '+(d.name||'')))return;const before=JSON.parse(JSON.stringify(d));d.active=false;d.v3Archived=true;audit('Archivage','staff',d,before);mark();renderStaff()});
- p.querySelector('#addStaff').onclick=()=>{const d={id:'STF-V3-LOCAL-'+(staff.length+1),name:'',department:'',phone:'',active:true};const host=p.querySelector('tbody tr:last-child')||p.querySelector('thead tr');inlineEditor(host,d,[['name','Nom complet'],['department','Département'],['phone','Téléphone']],renderStaff,patch=>{if(!String(patch.name||'').trim()){alert('Le nom est obligatoire.');return false}Object.assign(d,patch);staff.push(d);audit('Ajout','staff',d,{});mark();return true})};
+ p.querySelector('#addStaff').onclick=()=>{const d={id:'STF-V3-LOCAL-'+(staff.length+1),name:'',department:'',phone:'',salaryMonthly:0,active:true};const host=p.querySelector('tbody tr:last-child')||p.querySelector('thead tr');inlineEditor(host,d,[['name','Nom complet'],['department','Département'],['phone','Téléphone'],['salaryMonthly','Salaire fixe mensuel (FCFA)','number']],renderStaff,patch=>{if(!String(patch.name||'').trim()){alert('Le nom est obligatoire.');return false}Object.assign(d,patch);staff.push(d);audit('Ajout','staff',d,{});mark();return true})};
 }
 
 function renderExpenses(){const v=sums();p.innerHTML=header('Dépenses — véhicules','Dépenses lues depuis la V2, sans écriture.')+'<div class="report-stats"><div class="report-stat green-outline"><div class="small">Validées</div><strong>'+cash(v.valid)+'</strong></div><div class="report-stat yellow-outline"><div class="small">À vérifier</div><strong>'+cash(v.wait)+'</strong></div></div>'+table(['Date','Type','Fournisseur','Montant','Statut','Action'],expense.map((e,i)=>'<tr><td>'+esc(e.date)+'</td><td>'+esc(e.type)+'</td><td>'+esc(e.vendor)+'</td><td>'+cash(e.amount)+'</td><td>'+esc(e.status)+'</td><td><button class="edit-btn" data-exp="'+i+'">Modifier</button></td></tr>').join(''));p.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>{let e=expense[+b.dataset.exp];let n=prompt('Montant (essai local)',e.amount);if(n===null||!isFinite(Number(n)))return;e.amount=Number(n);mark();renderExpenses()});}
@@ -979,7 +979,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
    if(decimalLitres){input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex. 12,5';input.setAttribute('aria-label','Litres (virgule ou point accepté)');}
    else if(type==='number'){input.min='0';input.step='1';}
   }
-  input.value=record[key]??'';box.appendChild(input);
+  if(type==='file'){input.accept='image/*,application/pdf';input.title='Image ou PDF, 400 Ko maximum';if(record[key]){const hint=document.createElement('small');hint.textContent='Un reçu est déjà joint'+(record.receiptName?' : '+record.receiptName:'')+'. Choisis un fichier pour le remplacer.';box.appendChild(hint);}}else input.value=record[key]??'';box.appendChild(input);
   if(type==='decimal'){input.inputMode='decimal';input.autocomplete='off';input.placeholder='Ex. 10,5';}
   if(key==='className'&&input.value&&choices&&!Array.from(input.options).some(o=>o.value===input.value)){const opt=document.createElement('option');opt.value=input.value;opt.textContent=input.value;input.insertBefore(opt,input.options[1]||null);}
   if((key==='school'||key==='className')&&choices){
@@ -998,6 +998,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   e.preventDefault();if(saveBusy)return;
   const updated={...record},changedFields=[];
   for(const [key,,type] of fields){
+   if(type==='file'){const file=form.elements.namedItem(key).files?.[0];if(file){if(file.size>400*1024)return error.textContent='Le reçu dépasse 400 Ko. Réduis la taille de la photo ou du PDF puis réessaie.';try{updated[key]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Lecture du reçu impossible.'));reader.readAsDataURL(file)});updated.receiptName=file.name;updated.receiptMime=file.type||'application/octet-stream';}catch(err){return error.textContent=err.message;}}continue;}
    let value=form.elements.namedItem(key).value.trim();
    if((key==='school'||key==='className')&&value==='__other__')value=form.elements.namedItem(key+'Custom').value.trim();
    if(module==='expenses'&&key==='litres'){
@@ -1017,6 +1018,8 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
   if(module==='subs'&&updated.price!==undefined&&(!Number.isFinite(Number(updated.price))||Number(updated.price)<0))return error.textContent='Tarif invalide.';
   if(['drivers','staff'].includes(module)&&!updated.name?.trim())return error.textContent='Nom obligatoire.';
   if(module==='expenses'&&(!updated.type?.trim()||!updated.date||!Number.isFinite(updated.amount)||updated.amount<0))return error.textContent='Type, date et montant valide obligatoires.';
+  if(module==='expenses'&&updated.expenseGroup==='common'&&Number(updated.amount)>0&&!updated.receiptData)return error.textContent='Joins le reçu avant d’enregistrer cette charge commune.';
+  if(module==='expenses'&&updated.expenseGroup==='salary'&&(!updated.employeeName||!/^\\d{4}-\\d{2}$/.test(updated.month||'')||Number(updated.amount)<=0))return error.textContent='Employé, mois et salaire fixe positif obligatoires.';
   if(module==='expenses'&&(!Number.isFinite(updated.litres)||updated.litres<0))return error.textContent='Le nombre de litres doit être égal ou supérieur à zéro.';
   if(module==='payments'&&(!updated.studentId||!updated.date||!/^\d{4}-\d{2}$/.test(updated.month)||!Number.isFinite(updated.amount)||updated.amount<=0))return error.textContent='Élève, date, mois et montant positif obligatoires.';
   if(module==='expenses'&&expense.some(x=>String(x.id)!==String(updated.id)&&updated.invoiceNumber&&x.invoiceNumber&&String(x.invoiceNumber).trim().toLowerCase()===String(updated.invoiceNumber).trim().toLowerCase()&&String(x.vendor||'').trim().toLowerCase()===String(updated.vendor||'').trim().toLowerCase()))return error.textContent='Facture déjà présente pour ce fournisseur dans V3 : doublon bloqué.';
@@ -1203,19 +1206,123 @@ function v3AttachExpenseFilters(){
  if(reset)reset.onclick=()=>{if(!v3GuardUnsavedEdit())return;Object.keys(v3ExpenseFilters).forEach(k=>v3ExpenseFilters[k]='');p.querySelectorAll('[data-v3-exp-filter]').forEach(x=>x.value='');p.querySelectorAll('.v3-editrow').forEach(x=>x.remove());apply();};
  apply();
 }
-const expenseFields=[['date','Date','date'],['type','Nature'],['busId','Bus affecté'],['vendor','Fournisseur / station'],['invoiceNumber','Numéro facture'],['km','Kilométrage','number'],['litres','Litres','decimal'],['amount','Montant FCFA','number'],['declaredBy','Déclaré par'],['status','Statut'],['note','Observation']];
-renderExpenses=function(){
- const v=sums(),active=expense.map((e,i)=>({...e,_index:i})).filter(e=>!e.v3Archived);
- const cell=e=>[esc(e.date),esc(e.type),esc(e.busId||e.bus||'—'),esc(e.vendor||e.supplier||'—'),esc(e.invoiceNumber||e.bill||'—'),esc(e.km??e.odometer??'—')+' km / '+esc(e.litres??'—')+' L',esc(e.declaredBy||e.enteredBy||e.submittedBy||e.createdBy||'—'),cash(e.amount),esc(e.status||'—')];
- p.innerHTML=header('Dépenses — véhicules','Saisies administratives, chauffeur et gestion. Les fiches archivées restent dans Firebase et les rapports.','<button class="btn green" id="addExpense">+ Ajouter une dépense</button>')+
- '<div class="report-stats"><div class="report-stat green-outline"><div class="small">Validées (archives comprises)</div><strong>'+cash(v.valid)+'</strong></div><div class="report-stat yellow-outline"><div class="small">À vérifier</div><strong>'+cash(v.wait)+'</strong></div></div>'+
- v3FuelSummaryHTML()+v3ExpenseFilterBar()+table([v3ExpenseHeader('date','Date'),v3ExpenseHeader('type','Nature'),v3ExpenseHeader('bus','Bus'),v3ExpenseHeader('vendor','Fournisseur'),'Facture','Km / Litres','Saisi par','Montant',v3ExpenseHeader('status','Statut'),'Actions'],active.map(e=>'<tr data-v3-exp-id="'+esc(e.id)+'">'+cell(e).map(x=>'<td>'+x+'</td>').join('')+'<td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10">Aucune dépense active. Les fiches archivées sont dans Historique.</td></tr>');
- v3AttachFuelSummary();
- v3AttachExpenseFilters();
- p.querySelector('#addExpense').onclick=()=>rowNew('expenses',expenseFields,{status:'À vérifier',amount:0,busId:'BUS-1'});
+const expenseFields=[['date','Date','date'],['type','Nature'],['busId','Bus affecté'],['vendor','Fournisseur / station'],['invoiceNumber','Numéro facture'],['km','Kilométrage','number'],['litres','Litres','decimal'],['amount','Montant FCFA','number'],['declaredBy','Déclaré par'],['status','Statut'],['note','Observation'],['receiptData','Joindre un reçu (image ou PDF, 400 Ko max)','file']];
+let v3ExpenseSection='fuel';
+function v3ExpenseGroup(e){
+ if(e.expenseGroup==='salary'||e.expenseGroup==='common'||e.expenseGroup==='fuel'||e.expenseGroup==='commonBudget')return e.expenseGroup;
+ const type=String(e.type||'');
+ if(/salaire|paie/i.test(type))return 'salary';
+ if(/carburant|gasoil|diesel|essence|fuel/i.test(type))return 'fuel';
+ return 'common';
+}
+function v3ExpenseReceiptButton(e){
+ return e.receiptData?'<button class="v3-receipt-link" data-open-receipt="'+esc(e.id)+'">Voir reçu</button>':'<span class="small">Aucun reçu</span>';
+}
+function v3ExpenseTabs(){
+ return '<div class="v3-expense-sections">'+[['fuel','Carburant'],['salary','Salaires'],['common','Charges communes']].map(x=>'<button type="button" data-exp-section="'+x[0]+'" class="'+(v3ExpenseSection===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</div>';
+}
+function v3ExpenseSummaryTotals(){
+ const active=expense.filter(e=>!e.v3Archived&&!e.noExpense);
+ const sum=group=>active.filter(e=>v3ExpenseGroup(e)===group).reduce((n,e)=>n+moneyNum(e.amount),0);
+ return '<div class="report-stats"><div class="report-stat blue-outline"><div class="small">Carburant</div><strong>'+cash(sum('fuel'))+'</strong></div><div class="report-stat yellow-outline"><div class="small">Salaires</div><strong>'+cash(sum('salary'))+'</strong></div><div class="report-stat green-outline"><div class="small">Charges communes</div><strong>'+cash(sum('common'))+'</strong></div></div>';
+}
+function v3ExpenseRows(group){
+ return expense.map((e,i)=>({...e,_index:i})).filter(e=>!e.v3Archived&&v3ExpenseGroup(e)===group);
+}
+function v3BindReceiptButtons(){
+ p.querySelectorAll('[data-open-receipt]').forEach(b=>b.onclick=()=>{const e=expense.find(x=>String(x.id)===b.dataset.openReceipt);if(e?.receiptData)window.open(e.receiptData,'_blank','noopener');});
+}
+function v3RenderPayroll(){
+ const records=v3ExpenseRows('salary').filter(e=>!e.noExpense);
+ const body=records.map(e=>{
+  const advances=Array.isArray(e.advances)?e.advances.reduce((n,a)=>n+moneyNum(a.amount),0):moneyNum(e.advanceTotal);
+  const due=Math.max(0,moneyNum(e.fixedSalary??e.amount)-advances);
+  const label=e.status||'À vérifier';
+  return '<tr><td>'+esc(e.month||'—')+'</td><td>'+esc(e.employeeName||e.vendor||'—')+'</td><td>'+esc(e.employeeRole||'—')+'</td><td>'+cash(e.fixedSalary??e.amount)+'</td><td>'+cash(advances)+'</td><td><b>'+cash(due)+'</b></td><td>'+esc(label)+'</td><td class="v3-payroll-actions"><button data-advance="'+esc(e.id)+'">Ajouter avance</button> '+(label==='Validée'||label==='Payée'?'<span class="small">Solde confirmé</span>':'<button class="pay-confirm" data-payroll-confirm="'+esc(e.id)+'">Confirmer le paiement du solde</button>')+'</td></tr>';
+ }).join('')||'<tr><td colspan="8" class="v3-payment-empty">Aucune fiche de paie enregistrée.</td></tr>';
+ const people=[...roles.filter(x=>x.active!==false).map(x=>({id:String(x.id),name:x.name||'',role:'Chauffeur',salary:Number(x.salaryMonthly)||0})),...staff.filter(x=>x.active!==false).map(x=>({id:String(x.id),name:x.name||[x.firstName,x.lastName].filter(Boolean).join(' '),role:x.department||'Staff',salary:Number(x.salaryMonthly)||0}))].filter(x=>x.name);
+ const options=people.map(x=>'<option value="'+esc(x.id)+'" data-name="'+esc(x.name)+'" data-role="'+esc(x.role)+'" data-salary="'+x.salary+'">'+esc(x.name)+' — '+esc(x.role)+(x.salary?' · '+cash(x.salary):' · salaire à renseigner')+'</option>').join('');
+ const host=p.querySelector('#v3-expense-detail');if(!host)return;host.innerHTML='<div class="card"><h3>Nouvelle fiche de paie</h3><form id="v3-payroll-form" class="v3-payroll-form"><label>Personne de la liste<select id="payroll-person"><option value="">Choisir un membre du staff ou chauffeur</option>'+options+'</select></label><label>Nom complet<input name="employeeName" required></label><label>Fonction<input name="employeeRole"></label><label>Mois<input name="month" type="month" required></label><label>Salaire fixe (FCFA)<input name="fixedSalary" type="number" min="1" step="1" required></label><label>Avances déjà versées<input name="advanceTotal" type="number" min="0" step="1" value="0"></label><button class="btn green" type="submit">Créer la fiche</button><div id="payroll-error" role="alert"></div></form></div>'+table(['Mois','Personne','Fonction','Salaire fixe','Avances','Solde à verser','État','Action'],body);
+ const person=p.querySelector('#payroll-person');
+ person.onchange=()=>{const o=person.selectedOptions[0];if(!o?.value)return;const f=p.querySelector('#v3-payroll-form');f.elements.employeeName.value=o.dataset.name;f.elements.employeeRole.value=o.dataset.role;f.elements.fixedSalary.value=o.dataset.salary||'';};
+ p.querySelector('#v3-payroll-form').onsubmit=async ev=>{
+  ev.preventDefault();const f=ev.currentTarget,err=p.querySelector('#payroll-error');
+  const name=f.elements.employeeName.value.trim(),role=f.elements.employeeRole.value.trim(),month=f.elements.month.value,fixed=Number(f.elements.fixedSalary.value),advance=Number(f.elements.advanceTotal.value||0),personId=person.value;
+  if(!name||!/^\d{4}-\d{2}$/.test(month)||!Number.isFinite(fixed)||fixed<=0||!Number.isFinite(advance)||advance<0||advance>fixed){err.textContent='Vérifie le nom, le mois, le salaire et les avances (elles ne peuvent dépasser le salaire).';return;}
+  const duplicate=expense.some(x=>v3ExpenseGroup(x)==='salary'&&!x.v3Archived&&String(x.month)===month&&String(x.employeeId||x.employeeName).toLowerCase()===String(personId||name).toLowerCase());
+  if(duplicate){err.textContent='Une fiche existe déjà pour cette personne et ce mois.';return;}
+  const advances=advance?[{date:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville'}).format(new Date()),amount:advance,note:'Avance déclarée lors de la création de la fiche'}]:[];
+  const record={id:freshId('expenses'),date:month+'-01',month,type:'Salaire',expenseGroup:'salary',employeeId:personId||'',employeeName:name,employeeRole:role,fixedSalary:fixed,advanceTotal:advance,advances,amount:fixed,busId:'',status:'À vérifier',vendor:name,receiptData:'',note:'Fiche de paie mensuelle; le salaire est compté une fois, avances déduites du solde.'};
+  err.textContent='Enregistrement…';try{await saveRecord('expenses',record,null); }catch(e){err.textContent=formatError(e);}
+ };
+ p.querySelectorAll('[data-advance]').forEach(b=>b.onclick=async()=>{
+  const e=expense.find(x=>String(x.id)===b.dataset.advance);if(!e)return;
+  const value=prompt('Montant de la nouvelle avance (FCFA) :','');if(value===null)return;
+  const amount=Number(value.replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(amount)||amount<=0)return alert('Montant d’avance invalide.');
+  const old=Array.isArray(e.advances)?e.advances.slice():[];const prior=old.reduce((n,a)=>n+moneyNum(a.amount),0);
+  if(prior+amount>moneyNum(e.fixedSalary??e.amount))return alert('Le total des avances dépasserait le salaire fixe.');
+  old.push({date:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville'}).format(new Date()),amount,note:'Avance ajoutée dans la fiche V3'});
+  try{await saveRecord('expenses',{...e,advances:old,advanceTotal:prior+amount},copy(e));}catch(err){alert(formatError(err));}
+ });
+ p.querySelectorAll('[data-payroll-confirm]').forEach(b=>b.onclick=async()=>{
+  const e=expense.find(x=>String(x.id)===b.dataset.payrollConfirm);if(!e)return;
+  const advances=Array.isArray(e.advances)?e.advances.reduce((n,a)=>n+moneyNum(a.amount),0):moneyNum(e.advanceTotal);
+  const due=Math.max(0,moneyNum(e.fixedSalary??e.amount)-advances);
+  if(!confirm('Confirmer le paiement du solde de '+cash(due)+' à '+(e.employeeName||'cette personne')+' pour '+e.month+' ? Le salaire total enregistré sera de '+cash(e.fixedSalary??e.amount)+', avances comprises.'))return;
+  try{await saveRecord('expenses',{...e,status:'Validée',finalPaidAmount:due,settledAt:firebase.database.ServerValue.TIMESTAMP},copy(e));}catch(err){alert(formatError(err));}
+ });
+}
+function v3RenderCommonCharges(){
+ const records=v3ExpenseRows('common');
+ const months=[...new Set(records.map(e=>String(e.date||'').slice(0,7)).filter(x=>/^\d{4}-\d{2}$/.test(x)))].sort().reverse();
+ const body=records.map(e=>'<tr><td>'+esc(e.date||'—')+'</td><td>'+esc(e.type||'—')+'</td><td>'+esc(e.vendor||e.supplier||'—')+'</td><td>'+cash(e.amount)+'</td><td>'+esc(e.status||'—')+(e.noExpense?' · aucune dépense déclarée':'')+'</td><td>'+v3ExpenseReceiptButton(e)+'</td><td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button></td></tr>').join('')||'<tr><td colspan="7" class="v3-payment-empty">Aucune charge commune enregistrée.</td></tr>';
+ const host=p.querySelector('#v3-expense-detail');if(!host)return;host.innerHTML=
+ '<div class="card"><h3>Budgets mensuels à confirmer</h3><p class="small">Ces montants sont ceux transmis par Edan. Martina confirme la périodicité et peut corriger les montants. Ils restent prévisionnels et ne sont jamais ajoutés aux dépenses réelles.</p><form id="common-budget-form" class="v3-payroll-form"><label>Mois concerné<input type="month" name="month" required></label><label>Entretien / lavage prévu<input type="number" name="wash" min="0" step="1" value="80000"></label><label>Réparations prévues<input type="number" name="repair" min="0" step="1" value="150000"></label><label>Budget commercial prévu<input type="number" name="commercial" min="0" step="1" value="70000"></label><button class="btn green" type="submit">Confirmer les budgets de ce mois</button><div id="common-budget-status" role="status"></div></form></div>'+
+ '<div class="card"><div class="v3-payroll-form"><label>Mois à contrôler<input id="common-check-month" type="month"></label><label>Poste à contrôler<select id="common-check-type"><option>Lavage / entretien courant</option><option>Réparation</option><option>Budget commercial</option></select></label><button type="button" class="edit-btn" id="common-no-expense">Confirmer aucune dépense sur ce poste</button></div><p class="small">Cette confirmation crée une trace à 0 FCFA; elle ne modifie aucun reçu ni total de dépense.</p></div>'+
+ '<div class="card head"><div><h3>Charges réelles</h3><div class="small">Chaque lavage, réparation ou achat est enregistré avec son montant et son justificatif.</div></div><button class="btn green" id="addCommonExpense">+ Ajouter une charge</button></div>'+
+ table(['Date','Nature','Fournisseur','Montant','Validation','Justificatif','Action'],body);
+ p.querySelector('#common-check-month').value=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit'}).format(new Date());
+ const budgetForm=p.querySelector('#common-budget-form');budgetForm.elements.month.value=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit'}).format(new Date());
+ budgetForm.onsubmit=async ev=>{ev.preventDefault();const f=ev.currentTarget,month=f.elements.month.value,status=p.querySelector('#common-budget-status');if(!/^\d{4}-\d{2}$/.test(month))return status.textContent='Choisis un mois valide.';if(!confirm('Confirmer comme budgets prévisionnels de '+month+' : entretien '+cash(f.elements.wash.value)+', réparations '+cash(f.elements.repair.value)+', commercial '+cash(f.elements.commercial.value)+' ? Aucun de ces montants ne sera compté comme dépense réelle.'))return;const set=[['Budget entretien / lavage','wash'],['Provision réparations','repair'],['Budget commercial prévu','commercial']];status.textContent='Enregistrement des budgets…';try{for(const [type,key] of set){const existing=expense.find(x=>x.expenseGroup==='commonBudget'&&x.month===month&&x.type===type);const rec={...(existing||{}),id:existing?existing.id:freshId('expenses'),month,date:month+'-01',type,expenseGroup:'commonBudget',budgetAmount:Number(f.elements[key].value)||0,amount:0,busId:'',status:'Prévisionnel',confirmedBudget:true,note:'Budget prévisionnel confirmé par l’Administration; non compté dans les dépenses réelles.'};await saveRecord('expenses',rec,existing?copy(existing):null);}status.textContent='Budgets prévisionnels enregistrés pour '+month+'.';}catch(err){status.textContent='Enregistrement interrompu : '+formatError(err);}};
+ const budgetRows=expense.filter(x=>x.expenseGroup==='commonBudget').sort((a,b)=>String(b.month).localeCompare(String(a.month))).map(x=>'<tr><td>'+esc(x.month||'—')+'</td><td>'+esc(x.type)+'</td><td>'+cash(x.budgetAmount)+'</td><td>'+esc(x.status||'Prévisionnel')+'</td></tr>').join('');
+ const budgetTable=document.createElement('div');budgetTable.innerHTML='<h3>Budgets déjà confirmés</h3>'+table(['Mois','Poste','Montant prévu','État'],budgetRows||'<tr><td colspan="4">Aucun budget mensuel confirmé.</td></tr>');host.insertBefore(budgetTable,host.firstChild);
+ p.querySelector('#common-no-expense').onclick=async()=>{
+  const month=p.querySelector('#common-check-month').value,type=p.querySelector('#common-check-type').value;
+  if(!/^\d{4}-\d{2}$/.test(month))return alert('Choisis un mois à vérifier.');
+  if(expense.some(x=>x.noExpense&&x.expenseGroup==='common'&&x.month===month&&x.type===type))return alert('Cette absence de dépense est déjà confirmée pour ce mois.');
+  if(!confirm('Confirmer qu’aucune dépense de « '+type+' » n’a été effectuée en '+month+' ?'))return;
+  const record={id:freshId('expenses'),date:month+'-01',month,type,expenseGroup:'common',noExpense:true,amount:0,busId:'',status:'Validée',vendor:'',note:'Aucune dépense déclarée pour ce poste et ce mois.'};
+  try{await saveRecord('expenses',record,null);}catch(err){alert(formatError(err));}
+ };
+ p.querySelector('#addCommonExpense').onclick=()=>rowNew('expenses',expenseFields,{status:'À vérifier',amount:0,busId:'',expenseGroup:'common',type:'Lavage / entretien courant'});
  p.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>editForm('expenses',expense[+b.dataset.exp],expenseFields,b.closest('tr')));
- p.querySelectorAll('[data-exp-archive]').forEach(b=>b.onclick=async()=>{const e=expense[+b.dataset.expArchive];if(!confirm('Retirer cette dépense de la page active et la conserver dans Historique et Rapports ?'))return;try{await saveRecord('expenses',{...e,v3Archived:true},copy(e));}catch(err){alert(formatError(err));}});
-};
+ v3BindReceiptButtons();
+}
+function renderExpenses(){
+ const active=expense.filter(e=>!e.v3Archived);
+ const sum=group=>active.filter(e=>!e.noExpense&&v3ExpenseGroup(e)===group).reduce((n,e)=>n+moneyNum(e.amount),0);
+ let content='';
+ if(v3ExpenseSection==='fuel'){
+  const list=v3ExpenseRows('fuel');
+  const body=list.map(e=>'<tr data-v3-exp-id="'+esc(e.id)+'"><td>'+esc(e.date||'—')+'</td><td>'+esc(e.type||'—')+'</td><td>'+esc(e.busId||e.bus||'—')+'</td><td>'+esc(e.vendor||e.supplier||'—')+'</td><td>'+esc(e.invoiceNumber||e.bill||'—')+'</td><td>'+esc(e.km??e.odometer??'—')+' km / '+esc(e.litres??'—')+' L</td><td>'+cash(e.amount)+'</td><td>'+esc(e.status||'—')+'</td><td>'+v3ExpenseReceiptButton(e)+'</td><td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10" class="v3-payment-empty">Aucun reçu de carburant.</td></tr>';
+  content='<details class="card v3-expense-details"><summary>Synthèse carburant par bus — ouvrir le détail</summary>'+v3FuelSummaryHTML()+'</details>'+v3ExpenseFilterBar()+table(['Date','Nature','Bus','Fournisseur','Facture','Km / Litres','Montant','Statut','Reçu','Actions'],body);
+ }else if(v3ExpenseSection==='salary'){
+  content='<div class="report-stats"><div class="report-stat yellow-outline"><div class="small">Total des fiches de salaire</div><strong>'+cash(sum('salary'))+'</strong></div></div>';
+ }else{
+  content='<div class="report-stats"><div class="report-stat green-outline"><div class="small">Charges communes réelles</div><strong>'+cash(sum('common'))+'</strong></div></div>';
+ }
+ p.innerHTML=header('Dépenses','Carburant, salaires et charges communes sont suivis séparément. Les nouvelles écritures sont enregistrées dans Firebase V3.')+v3ExpenseSummaryTotals()+v3ExpenseTabs()+content;p.insertAdjacentHTML('beforeend','<div id="v3-expense-detail"></div>');
+ if(v3ExpenseSection==='fuel'){
+  v3AttachFuelSummary();v3AttachExpenseFilters();
+  p.querySelector('#addExpense')?.remove();
+  const action=document.createElement('button');action.className='btn green';action.id='addFuelExpense';action.textContent='+ Ajouter un reçu carburant';p.querySelector('.card.head').appendChild(action);
+  action.onclick=()=>rowNew('expenses',expenseFields,{status:'À vérifier',amount:0,busId:'BUS-1',type:'Carburant',expenseGroup:'fuel'});
+  p.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>editForm('expenses',expense[+b.dataset.exp],expenseFields,b.closest('tr')));
+  p.querySelectorAll('[data-exp-archive]').forEach(b=>b.onclick=async()=>{const e=expense[+b.dataset.expArchive];if(!confirm('Retirer cette dépense de la page active et la conserver dans Historique et Rapports ?'))return;try{await saveRecord('expenses',{...e,v3Archived:true},copy(e));}catch(err){alert(formatError(err));}});
+  v3BindReceiptButtons();
+ }else if(v3ExpenseSection==='salary')v3RenderPayroll();else v3RenderCommonCharges();
+ p.querySelectorAll('[data-exp-section]').forEach(b=>b.onclick=()=>{if(!v3GuardUnsavedEdit())return;v3ExpenseSection=b.dataset.expSection;renderExpenses();});
+}
 function paymentForm(record=null){
  const old=p.querySelector('#v3-payment-editor');if(old)old.remove();
  const wrapper=document.createElement('div');wrapper.id='v3-payment-editor';wrapper.className='card';
