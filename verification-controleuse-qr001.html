@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G10 — Vérifier la contrôleuse du scan QR001</title>
+<style>
+:root{color-scheme:light;--navy:#153b69;--green:#128458;--bg:#eef4fb;--line:#dae5ef}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:#183451}
+header{background:var(--navy);color:white;padding:20px}main{max-width:600px;margin:20px auto;padding:0 12px}
+article{background:white;border-radius:16px;padding:22px;box-shadow:0 8px 25px #1232}
+button,.link{display:inline-block;border:0;border-radius:9px;padding:12px 16px;font:inherit;font-weight:700;background:var(--green);color:#fff;text-decoration:none;cursor:pointer}
+button:disabled{opacity:.55;cursor:default}.secondary{background:#e6eff7;color:#1a3a59}
+#status{padding:13px;margin:14px 0;border-radius:9px;background:#eff4fc;white-space:pre-line;line-height:1.6}
+#info{color:#4d6377;font-size:14px;line-height:1.6}.hidden{display:none}.warning{background:#fff0d3;border-radius:9px;padding:12px;font-size:14px}
+small{color:#6c7f92}
+</style>
+</head>
+<body>
+<header><strong>🚌 G10 TRANSPORT SCOLAIRE</strong><div>Vérifier l'identité du scan — QR001</div></header>
+<main><article>
+<h2>Scan d'Emmanuel · Montée du matin</h2>
+<p>Cette page vérifie si le compte actuellement connecté est celui qui a validé le scan du <b>23 octobre 2026</b>.</p>
+<div id="status" role="status">Recherche de la session Firebase…</div>
+<div id="info"></div>
+<p id="loginHelp" class="hidden">Ouvre d'abord <a href="./scan-logistique.html">le scanner logistique G10 V3</a>, connecte-toi avec le compte de Gecolia, puis reviens ici avec le <b>même navigateur</b>.</p>
+<button id="check" class="secondary">Vérifier mon compte</button>
+<div id="verified" class="hidden">
+<p class="warning">Le compte connecté correspond bien au scan. Si tu confirmes que ce compte appartient à <b>Gecolia</b>, tu peux associer son nom à ce mouvement existant. Cela ne crée pas un nouveau scan et ne change pas l'heure.</p>
+<button id="name">Associer le nom « Gecolia » à ce mouvement</button>
+</div>
+<p><small>Seul le mouvement QR001 du 23/10/2026 est vérifié. Cette page ne crée aucun événement. L'association du nom exige un clic distinct et une confirmation explicite.</small></p>
+</article></main>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+(()=>{
+'use strict';
+const cfg={
+apiKey:'AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o',
+authDomain:'g10-transport-scolaire-v2.firebaseapp.com',
+databaseURL:'https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app',
+projectId:'g10-transport-scolaire-v2',
+appId:'1:836907463780:web:585e2b4f075c8ff172db71'
+};
+const ROOT='g10TransportScolaireV3', DATA=ROOT+'/data', QR='G10-TP-SCOL-QR001';
+const DAY='2026-10-23', STAGE='boardingAM';
+const $=id=>document.getElementById(id);
+let recordRef=null,uid='',verified=false,fb=null,db=null;
+function status(message){$('status').textContent=message;}
+function errorMessage(error){return String(error?.message||error?.code||error);}
+function reset(){verified=false;recordRef=null;uid='';$('verified').classList.add('hidden');}
+async function hash(value){
+ const bytes=new TextEncoder().encode(String(value));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return Array.from(new Uint8Array(digest)).slice(0,12).map(n=>n.toString(16).padStart(2,'0')).join('');
+}
+async function verify(){
+ reset();$('check').disabled=true;
+ try{
+  if(!window.firebase?.auth||!window.firebase?.database)throw Error('Connexion Firebase indisponible. Recharge cette page.');
+  if(!firebase.apps.length)firebase.initializeApp(cfg);
+  fb=firebase;db=fb.database();
+  const user=await new Promise(resolve=>{const off=fb.auth().onAuthStateChanged(u=>{off();resolve(u)},()=>{off();resolve(null)})});
+  if(!user){$('loginHelp').classList.remove('hidden');status('Aucun compte Firebase connecté dans ce navigateur. Aucun scan modifié.');return;}
+  $('loginHelp').classList.add('hidden');
+  const role=(await db.ref(ROOT+'/roles/'+user.uid).once('value')).val();
+  if(role?.enabled!==true||role.role!=='logistique')throw Error('Le compte connecté n’est pas un compte Logistique actif. Connecte le compte de Gecolia dans le scanner.');
+  const roster=(await db.ref(DATA+'/scanRoster').once('value')).val()||{};
+  const student=Object.values(roster).find(x=>x&&String(x.qrRef||'').toUpperCase()===QR);
+  if(!student||!student.id)throw Error('La référence QR001 est absente du répertoire de scan V3.');
+  const eventId='MOVE-QR-'+DAY.replace(/-/g,'')+'-'+STAGE+'-'+await hash(student.id);
+  const reference=db.ref(DATA+'/movements/'+eventId);
+  const event=(await reference.once('value')).val();
+  if(!event)throw Error('Le mouvement de montée QR001 du 23 octobre n’a pas été trouvé.');
+  if(event.studentId!==student.id||event.qrRef!==QR||event.stage!==STAGE||event.day!==DAY||event.source!=='logistique-qr')throw Error('Le mouvement trouvé ne correspond pas exactement à QR001 et à la montée du 23 octobre.');
+  const email=user.email||'(email non fourni)';
+  $('info').textContent='Compte connecté : '+email+'. Heure du scan : '+new Date(event.atMs).toLocaleString('fr-FR',{timeZone:'Africa/Libreville',dateStyle:'short',timeStyle:'short'})+' (Libreville).';
+  if(String(event.scannedBy||'')!==user.uid){
+    status('NON CONFIRMÉ : ce mouvement a été enregistré par un autre compte Firebase. Aucun nom attribué.');
+    return;
+  }
+  verified=true;uid=user.uid;recordRef=reference;
+  if(event.scannedByName==='Gecolia'){status('CONFIRMÉ : ce compte a effectué le scan. Le mouvement porte déjà le nom Gecolia.');return;}
+  if(event.scannedByName&&event.scannedByName!=='Gecolia'){status('CONFIRMÉ pour le compte connecté, mais un autre nom figure déjà sur le mouvement. Aucune modification automatique.');return;}
+  status('CONFIRMÉ : le compte connecté a bien validé cette montée QR001. Si ce compte est celui de Gecolia, l’association du nom peut être effectuée.');
+  $('verified').classList.remove('hidden');
+ }catch(e){status('Vérification impossible : '+errorMessage(e)+'\nAucun événement modifié.');}
+ finally{$('check').disabled=false}
+}
+$('check').onclick=verify;
+$('name').onclick=async()=>{
+ if(!verified||!recordRef||!uid)return;
+ if(!confirm('Confirmer que le compte connecté appartient à Gecolia et inscrire son nom sur le mouvement QR001 du 23 octobre ?'))return;
+ $('name').disabled=true;
+ try{
+  const result=await recordRef.transaction(current=>{
+    if(!current||String(current.scannedBy||'')!==uid||current.studentId==null||current.qrRef!==QR||current.stage!==STAGE||current.day!==DAY||current.source!=='logistique-qr')return;
+    if(current.scannedByName&&current.scannedByName!=='Gecolia')return;
+    return {...current,scannedByName:'Gecolia'};
+  },undefined,false);
+  if(!result.committed||result.snapshot.val()?.scannedByName!=='Gecolia')throw Error('Aucune modification confirmée : vérifie les autorisations Firebase.');
+  status('CONFIRMÉ : ce scan est désormais attribué à Gecolia dans Firebase V3. Heure et étape inchangées. Actualise la vue Espace Parents.');
+  $('verified').classList.add('hidden');
+ }catch(e){status('L’identité du compte est vérifiée, mais Firebase a refusé l’inscription du nom : '+errorMessage(e)+'\nLe mouvement initial reste inchangé.')}
+ finally{$('name').disabled=false}
+};
+window.addEventListener('load',verify);
+})();
+</script>
+</body></html>
