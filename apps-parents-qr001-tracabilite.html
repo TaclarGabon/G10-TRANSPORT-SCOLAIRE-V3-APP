@@ -23,8 +23,8 @@ footer{font-size:12px;color:#5b7087;line-height:1.5;padding:10px 0}
 <p id="status" class="status">Vérification de la session V3…</p>
 <div id="steps"></div>
 <p id="identityNotice" class="status hide"></p>
-<p><a class="btn ghost" href="verification-controleuse-qr001.html">Vérifier le compte Gecolia (sur son téléphone)</a></p>
-<footer>Vue réservée à l’Administration et à la Direction G10. Elle lit les mouvements Firebase V3 en direct sans créer ou modifier de scans. Aucun accès familial n’est activé dans cette page.</footer>
+<p><a class="btn ghost" href="verification-controleuse-qr001.html">Vérifier Gecolia (même navigateur pour l’aperçu)</a></p>
+<footer>Vue réservée à l’Administration et à la Direction G10. Le nom vérifié est mémorisé seulement dans ce navigateur pour les tests ; aucun mouvement Firebase n’est modifié. Les accès familiaux restent à développer.</footer>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -48,6 +48,13 @@ function render(){
  for(const e of mine.sort((a,b)=>Number(a.atMs||0)-Number(b.atMs||0)))assigned.set(e.stage,e);
  // Only a previously verified, movement-stored name may label other scans made by the same Firebase UID.
  const confirmedUidNames=new Map();
+ try{
+  const local=JSON.parse(localStorage.getItem('g10_verified_controller_names_v1')||'{}');
+  if(local&&typeof local==='object')for(const [uid,v] of Object.entries(local)){
+   if(uid&&v?.name&&v?.source==='auth-matched-scan-QR001')confirmedUidNames.set(uid,String(v.name));
+  }
+ }catch(_){} 
+
  for(const e of all){if(e.source==='logistique-qr'&&e.scannedBy&&typeof e.scannedByName==='string'&&e.scannedByName.trim())confirmedUidNames.set(String(e.scannedBy),e.scannedByName.trim())}
  const contain=$('steps');contain.replaceChildren();
  let unknown=0;
@@ -70,7 +77,7 @@ function render(){
  }
  setStatus(me?'QR001 retrouvé · '+mine.length+' mouvement(s) au '+selected+' · Écoute Firebase V3 active.':'Fiche QR001 introuvable dans les abonnés V3.');
  const note=$('identityNotice');note.classList.toggle('hide',!unknown);
- if(unknown)note.textContent='Le scan est confirmé. Le code du scanner stocke l’identifiant du compte (scannedBy), mais pas encore son nom. Pour afficher « Validé par Gecolia », vérifie et associe son compte une fois à partir du lien ci-dessous. Aucun nouveau scan n’est nécessaire.';
+ if(unknown)note.textContent='Le scan est confirmé. Le scanner conserve le compte (scannedBy), pas encore le nom. La vérification Gecolia peut associer son nom dans cet aperçu sur le même navigateur, sans modifier Firebase. Aucun nouveau scan n’est nécessaire.';
 }
 async function refresh(){if(!database)return; $('refresh').disabled=true;try{const [s,m]=await Promise.all([database.ref(DATA+'/subs').once('value'),database.ref(DATA+'/movements').once('value')]);subscriber=rows(s.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;movements=m.val()||{};render()}catch(e){setStatus('Lecture refusée : '+String(e.message||e))}finally{$('refresh').disabled=false}}
 $('day').value=day(new Date());$('day').onchange=render;$('today').onclick=()=>{$('day').value=day(new Date());render()};$('refresh').onclick=refresh;
