@@ -1,0 +1,100 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>G10 Apps — Test code WhatsApp</title>
+<style>
+:root{--navy:#123d78;--green:#0a8855;--ink:#183653;--bg:#eef6fd;--line:#d4e3f0}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+.hero{background:linear-gradient(110deg,#04356e 15%,#0b69a3 75%,#07925b);color:#fff;padding:26px 20px 35px}
+.hero h1{font-size:clamp(26px,6vw,37px);margin:15px 0 5px}.hero small{font-weight:750}
+.hero p{margin:8px 0}.wrap{max-width:640px;margin:18px auto;padding:0 14px 50px}
+.card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:21px;box-shadow:0 5px 20px #0d345b0c;margin:13px 0}
+h2{font-size:20px;margin:2px 0 12px}.muted{color:#60788d;font-size:14px;line-height:1.55}
+label{display:block;font-size:14px;font-weight:700;margin:16px 0 6px}
+input,select{font:inherit;border:1px solid #c4d8e8;border-radius:10px;padding:13px;width:100%;background:#fff}
+button{font:inherit;border:0;border-radius:11px;padding:12px 16px;cursor:pointer;font-weight:750}
+.primary{background:#087e51;color:#fff}.secondary{background:#e6eef8;color:var(--ink)}
+button:disabled{opacity:.55;cursor:default}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.row select{width:112px;flex:0 0 auto}.row input{flex:1;min-width:180px}.note{background:#fff4df;border-radius:10px;padding:13px;color:#6e4f13;font-size:14px;line-height:1.55}
+.good{background:#e5f8ed;border-radius:10px;padding:13px;color:#106842}.hidden{display:none!important}
+#status{padding:13px;border-radius:10px;background:#e7f0f8;margin-top:13px;white-space:pre-line;line-height:1.5}
+footer{font-size:12px;color:#657a91;line-height:1.5;padding:16px}
+</style></head><body>
+<header class="hero"><small>🚌 G10 TRANSPORT SCOLAIRE</small><h1>Essai du code WhatsApp</h1><p>Le test avec ton téléphone, sans accéder aux dossiers des parents.</p></header>
+<main class="wrap">
+<section class="card" id="loginSection">
+<h2>Connexion Direction</h2>
+<p class="muted">Ce test est réservé à G10 Direction. Entre tes identifiants habituels V3 ; aucun mot de passe ne sera transmis à Twilio.</p>
+<form id="login"><label for="email">Adresse e-mail Direction</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password" required>
+<p><button type="submit" class="primary" id="connect">Ouvrir le test WhatsApp</button></p></form>
+</section>
+<section class="card hidden" id="testSection">
+<div class="row" style="justify-content:space-between"><strong id="connectedAs"></strong><button id="leave" class="secondary">Fermer</button></div>
+<h2 style="margin-top:25px">1. Recevoir un code sur WhatsApp</h2>
+<p class="muted">Sélectionne ton pays. Par défaut : Gabon <b>+241</b>. Tu peux choisir Canada <b>+1</b> pour ton propre numéro.</p>
+<label for="number">Ton numéro WhatsApp</label>
+<div class="row"><select id="country" aria-label="Indicatif téléphonique"><option value="+241">🇬🇦 +241</option><option value="+1">🇨🇦 +1</option></select><input id="number" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="77 04 38 39"></div>
+<p class="muted" id="formatHelp">Saisis 8 chiffres, espacés automatiquement par deux.</p>
+<p><button id="send" class="primary">Envoyer mon code sur WhatsApp</button></p>
+<hr style="border:0;border-top:1px solid #dae5ef;margin:25px 0">
+<h2>2. Vérifier le code reçu</h2>
+<label for="otp">Code de vérification WhatsApp</label>
+<input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code reçu dans WhatsApp">
+<p><button id="check" class="primary">Vérifier mon code</button></p>
+</section>
+<p id="status" role="status">Ce test ne peut envoyer un vrai code qu'après l'activation de Twilio Verify WhatsApp et le déploiement du service Firebase G10.</p>
+<p class="note"><strong>Ce que ce test vérifie :</strong> l'arrivée d'un code WhatsApp et sa validation. Il ne crée aucun compte familial et ne donne accès à aucune donnée d'enfant. Aucun code n'est généré dans cette page.</p>
+<footer>G10 Apps Scolaire · Essai technique Direction uniquement. WhatsApp Business/Twilio Verify et Firebase Cloud Functions doivent être configurés pour effectuer un envoi réel.</footer>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script>
+(()=>{"use strict";
+const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);let auth,startFn,checkFn,requestedPhone="",inFlight=false;
+function status(s,ok=false){const el=$("status");el.textContent=s;el.className=ok?"good":"";if(!ok)el.id="status"}
+function friendly(e){const code=String(e?.code||"");
+ if(code.includes("not-found")||code.includes("unavailable"))return "Le service WhatsApp n'est pas encore déployé/configuré. Aucun message n'est parti.";
+ if(code.includes("unauthenticated")||code.includes("permission-denied"))return "Connexion Direction requise pour ce test.";
+ if(code.includes("resource-exhausted"))return "Limite d'essais atteinte. Réessaie plus tard.";
+ return String(e?.message||"Impossible de contacter le service WhatsApp. Aucun envoi confirmé.");}
+function groups(s,pattern){const a=[];let i=0;for(const n of pattern){if(i>=s.length)break;a.push(s.slice(i,i+n));i+=n}return a.join(" ")}
+$("number").addEventListener("input",()=>{const digits=$("number").value.replace(/\D/g,"").slice(0,$("country").value==="+241"?8:10);$("number").value=groups(digits,$("country").value==="+241"?[2,2,2,2]:[3,3,4]);});
+$("country").onchange=()=>{$("number").value="";$("number").placeholder=$("country").value==="+241"?"77 04 38 39":"604 123 4567";$("formatHelp").textContent=$("country").value==="+241"?"Saisis 8 chiffres, espacés automatiquement par deux.":"Saisis 10 chiffres (3 + 3 + 4)."};
+function phone(){const n=$("number").value.replace(/\D/g,"");const prefix=$("country").value;if(n.length!==(prefix==="+241"?8:10))throw Error("Vérifie les chiffres de ton numéro.");return prefix+n}
+$("login").onsubmit=async e=>{
+ e.preventDefault();$("connect").disabled=true;status("Connexion Direction en cours…");
+ try{await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);$("password").value="";}
+ catch(err){status(friendly(err));$("password").value="";}
+ finally{$("connect").disabled=false}
+};
+$("leave").onclick=async()=>{await auth.signOut();requestedPhone="";$("otp").value="";status("Session Direction fermée.")};
+$("send").onclick=async()=>{
+ if(inFlight)return;let p;
+ try{p=phone()}catch(e){status(e.message);return}
+ if(!confirm("Envoyer un code WhatsApp de vérification au numéro "+p+" ? L'envoi peut être facturé par votre fournisseur."))return;
+ inFlight=true;$("send").disabled=true;status("Demande d'envoi WhatsApp…");
+ try{const result=(await startFn({phone:p})).data;if(result?.requested){requestedPhone=p;status("Demande acceptée. Vérifie WhatsApp sur le numéro se terminant par "+result.destinationHint.slice(-4)+", puis saisis le code.");}else status("Envoi non confirmé.")}
+ catch(err){status(friendly(err))}
+ finally{inFlight=false;$("send").disabled=false}
+};
+$("check").onclick=async()=>{
+ if(inFlight)return;
+ if(!requestedPhone){status("Commence par demander un code sur WhatsApp.");return}
+ const code=$("otp").value.replace(/\D/g,"");
+ if(code.length<4||code.length>10){status("Saisis le code reçu dans WhatsApp.");return}
+ inFlight=true;$("check").disabled=true;status("Vérification du code…");
+ try{const result=(await checkFn({phone:requestedPhone,code})).data;
+  if(result?.verified){status("✅ TEST WHATSAPP RÉUSSI : le code envoyé à ce téléphone a été vérifié. Aucun dossier familial n'a été ouvert.",true);requestedPhone="";$("otp").value="";}
+  else status("Code incorrect ou non encore approuvé. Réessaie avec le code WhatsApp reçu.");
+ }catch(err){status(friendly(err))}
+ finally{inFlight=false;$("check").disabled=false}
+};
+if(!window.firebase?.auth||!window.firebase?.functions){status("Les modules Firebase ne sont pas disponibles. Vérifie ta connexion.");return}
+const app=firebase.apps.find(a=>a.name==="g10-whatsapp-test")||firebase.initializeApp(config,"g10-whatsapp-test");
+auth=app.auth();const functions=app.functions("europe-west1");
+startFn=functions.httpsCallable("startG10WhatsAppPilot");
+checkFn=functions.httpsCallable("checkG10WhatsAppPilot");
+auth.onAuthStateChanged(user=>{$("loginSection").classList.toggle("hidden",!!user);$("testSection").classList.toggle("hidden",!user);if(user){$("connectedAs").textContent="Direction · "+(user.email||"Compte connecté");status("Session Direction ouverte. Pour recevoir le code, Twilio Verify WhatsApp doit être activé et les fonctions déployées.")}});
+})();
+</script></body></html>
