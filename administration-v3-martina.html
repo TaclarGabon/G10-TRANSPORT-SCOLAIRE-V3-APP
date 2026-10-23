@@ -1209,7 +1209,8 @@ renderExpenses=function(){
  const cell=e=>[esc(e.date),esc(e.type),esc(e.busId||e.bus||'—'),esc(e.vendor||e.supplier||'—'),esc(e.invoiceNumber||e.bill||'—'),esc(e.km??e.odometer??'—')+' km / '+esc(e.litres??'—')+' L',esc(e.declaredBy||e.enteredBy||e.submittedBy||e.createdBy||'—'),cash(e.amount),esc(e.status||'—')];
  p.innerHTML=header('Dépenses — véhicules','Saisies administratives, chauffeur et gestion. Les fiches archivées restent dans Firebase et les rapports.','<button class="btn green" id="addExpense">+ Ajouter une dépense</button>')+
  '<div class="report-stats"><div class="report-stat green-outline"><div class="small">Validées (archives comprises)</div><strong>'+cash(v.valid)+'</strong></div><div class="report-stat yellow-outline"><div class="small">À vérifier</div><strong>'+cash(v.wait)+'</strong></div></div>'+
- v3ExpenseFilterBar()+table([v3ExpenseHeader('date','Date'),v3ExpenseHeader('type','Nature'),v3ExpenseHeader('bus','Bus'),v3ExpenseHeader('vendor','Fournisseur'),'Facture','Km / Litres','Saisi par','Montant',v3ExpenseHeader('status','Statut'),'Actions'],active.map(e=>'<tr data-v3-exp-id="'+esc(e.id)+'">'+cell(e).map(x=>'<td>'+x+'</td>').join('')+'<td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10">Aucune dépense active. Les fiches archivées sont dans Historique.</td></tr>');
+ v3FuelSummaryHTML()+v3ExpenseFilterBar()+table([v3ExpenseHeader('date','Date'),v3ExpenseHeader('type','Nature'),v3ExpenseHeader('bus','Bus'),v3ExpenseHeader('vendor','Fournisseur'),'Facture','Km / Litres','Saisi par','Montant',v3ExpenseHeader('status','Statut'),'Actions'],active.map(e=>'<tr data-v3-exp-id="'+esc(e.id)+'">'+cell(e).map(x=>'<td>'+x+'</td>').join('')+'<td><button class="edit-btn" data-exp="'+e._index+'">Modifier</button> <button class="clean-btn" data-exp-archive="'+e._index+'">Retirer de la page</button></td></tr>').join('')||'<tr><td colspan="10">Aucune dépense active. Les fiches archivées sont dans Historique.</td></tr>');
+ v3AttachFuelSummary();
  v3AttachExpenseFilters();
  p.querySelector('#addExpense').onclick=()=>rowNew('expenses',expenseFields,{status:'À vérifier',amount:0,busId:'BUS-1'});
  p.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>editForm('expenses',expense[+b.dataset.exp],expenseFields,b.closest('tr')));
@@ -1694,6 +1695,54 @@ function v3CostReportData(period,date){
  const leaders=rows.slice(0,3).filter(r=>r.verified>0).sort((a,b)=>b.verified-a.verified);
  const highest=leaders.length?leaders.filter(r=>r.verified===leaders[0].verified).map(r=>r.id):[];
  return {from,to,rows,highest,noDate,verified:rows.reduce((n,r)=>n+r.verified,0),pending:rows.reduce((n,r)=>n+r.pending,0)};
+}
+function v3FuelSummaryHTML(){
+ const currentDate=v3CostReportState.date||new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const date=v3CostISO(currentDate)||new Date().toISOString().slice(0,10);
+ v3CostReportState.date=date;
+ const [from,to]=v3CostWindow(v3CostReportState.period,date);
+ const names={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo','_unassigned':'Sans bus identifié'};
+ const rows=Object.keys(names).map(id=>({id,litres:0,amount:0,count:0}));
+ const byBus=new Map(rows.map(row=>[row.id,row]));
+ let excluded=0;
+ for(const e of expense){
+  if(!/carburant|gasoil|diesel|essence|fuel/i.test(String(e.type||'')))continue;
+  const day=v3CostISO(e.date);
+  if(!day){excluded++;continue;}
+  if(day<from||day>to)continue;
+  const id=String(e.busId||e.bus||'');
+  const row=byBus.get(id)||byBus.get('_unassigned');
+  const litres=Number(String(e.litres??'').trim().replace(',','.'));
+  row.litres+=Number.isFinite(litres)?litres:0;
+  row.amount+=moneyNum(e.amount);
+  row.count++;
+ }
+ const sum=rows.reduce((acc,row)=>({litres:acc.litres+row.litres,amount:acc.amount+row.amount,count:acc.count+row.count}),{litres:0,amount:0,count:0});
+ const fmtLitres=value=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value)+' L';
+ const periodNames={week:'Semaine (lundi–dimanche)',fortnight:'Quinzaine (1–15 / 16–fin)',month:'Mois civil'};
+ const tableRows=rows.map(row=>'<tr><td><b>'+esc(names[row.id])+'</b></td><td>'+fmtLitres(row.litres)+'</td><td>'+cash(row.amount)+'</td><td>'+row.count+'</td></tr>').join('');
+ return '<section class="card" id="v3-fuel-summary"><div class="head"><h2>Synthèse carburant par bus</h2></div>'+
+ '<p class="small">Cumul calculé depuis les reçus de carburant enregistrés, reçus archivés compris. Les montants incluent tous les statuts. « Sans bus identifié » permet de repérer les fiches sans affectation reconnue.</p>'+
+ '<div class="v3-filter-bar"><label>Période<select id="v3-fuel-period">'+Object.entries(periodNames).map(([v,title])=>'<option value="'+v+'"'+(v===v3CostReportState.period?' selected':'')+'>'+esc(title)+'</option>').join('')+'</select></label>'+
+ '<label>Date de référence<input id="v3-fuel-date" type="date" value="'+date+'"></label></div>'+
+ '<p><strong>Du '+esc(from)+' au '+esc(to)+'</strong></p>'+
+ table(['Bus','Litres de carburant','Montant déclaré','Reçus'],tableRows+'<tr><td><b>Total général</b></td><td><b>'+fmtLitres(sum.litres)+'</b></td><td><b>'+cash(sum.amount)+'</b></td><td><b>'+sum.count+'</b></td></tr>')+
+ (excluded?'<p class="small">Attention : '+excluded+' reçu(s) de carburant sans date reconnue ne peuvent pas être placés dans cette période.</p>':'')+
+ '</section>';
+}
+function v3AttachFuelSummary(){
+ const period=p.querySelector('#v3-fuel-period'),date=p.querySelector('#v3-fuel-date');
+ const refresh=()=>{if(!v3GuardUnsavedEdit())return;v3RenderFuelSummary();};
+ if(period)period.onchange=()=>{v3CostReportState.period=period.value;refresh();};
+ if(date)date.onchange=()=>{if(v3CostISO(date.value)){v3CostReportState.date=date.value;refresh();}};
+}
+function v3RenderFuelSummary(){
+ const old=p.querySelector('#v3-fuel-summary');
+ if(!old)return;
+ const holder=document.createElement('div');
+ holder.innerHTML=v3FuelSummaryHTML();
+ old.replaceWith(holder.firstElementChild);
+ v3AttachFuelSummary();
 }
 function v3RenderCostReport(){
  const existing=p.querySelector('#v3-cost-report');if(existing)existing.remove();
