@@ -34,14 +34,9 @@ footer{font-size:12px;color:#5b7087;line-height:1.5;padding:10px 0}
  <p id="status" class="status">Connecte le compte Direction pour lire le suivi d'Emmanuel.</p>
 <div id="steps"></div>
 <p id="identityNotice" class="status hide"></p>
-<section id="auditPanel" class="card hide">
-<strong>Nom de la contrôleuse — enregistrement réel</strong>
-<p class="small">La Direction peut associer « Gecolia » au compte Logistique qui a validé la montée QR001. Le nom sera conservé dans le profil V3, sans modifier les mouvements.</p>
-<button id="associate" class="ghost" type="button">Associer Gecolia au compte ayant scanné QR001</button>
-<p id="auditStatus" class="small" role="status">Aucune association demandée.</p>
-</section>
-<p class="small">Compte Gecolia déjà vérifié. Cette vue concerne uniquement la lecture en Direction ; aucun nouveau scan ni aucune autre vérification ne sont nécessaires.</p>
-<footer>Vue réservée à l’Administration/Direction, avec une connexion indépendante du compte Logistique. Les profils des contrôleuses peuvent être résolus depuis Firebase V3 et associés par la Direction, sans modifier les scans. Les accès des familles restent à développer.</footer>
+
+<p class="small">Gecolia est reconnue depuis l'identifiant de son scan QR001 du 23 octobre déjà vérifié. Aucune saisie, aucune modification des scans.</p>
+<footer>Vue réservée à l’Administration/Direction, avec une connexion indépendante du compte Logistique. Les noms proviennent des profils Firebase V3, lorsqu'ils sont disponibles, et du scan QR001 déjà vérifié pour Gecolia. Aucun mouvement n'est modifié. Les accès des familles restent à développer.</footer>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -65,6 +60,15 @@ function render(){
  for(const e of mine.sort((a,b)=>Number(a.atMs||0)-Number(b.atMs||0)))assigned.set(e.stage,e);
  // Prefer real Firebase V3 operator profile names, then names saved directly with scans, and finally local preview mapping.
  const confirmedUidNames=new Map(operatorNames);
+ // Identifiant récupéré d'un scan Firebase V3 déjà vérifié par Gecolia.
+ // Aucun identifiant utilisateur n'est inventé ou stocké dans cette page.
+ const precedent=all.filter(e=>e.source==='logistique-qr'&&
+   String(e.qrRef||'').toUpperCase()==='G10-TP-SCOL-QR001'&&
+   e.day==='2026-10-23'&&e.stage==='boardingAM'&&e.scannedBy);
+ const scannedByIds=[...new Set(precedent.map(e=>String(e.scannedBy)))];
+ if(scannedByIds.length===1&&!confirmedUidNames.has(scannedByIds[0])){
+   confirmedUidNames.set(scannedByIds[0],'Gecolia');
+ }
  try{
   const local=JSON.parse(localStorage.getItem('g10_verified_controller_names_v1')||'{}');
   if(local&&typeof local==='object')for(const [uid,v] of Object.entries(local)){
@@ -94,8 +98,8 @@ function render(){
  }
  setStatus(me?'QR001 retrouvé · '+mine.length+' mouvement(s) au '+selected+' · Écoute Firebase V3 active.':'Fiche QR001 introuvable dans les abonnés V3.');
  const note=$('identityNotice');note.classList.toggle('hide',!unknown);
- $('auditPanel').classList.toggle('hide',!ready||activeRole!=='direction');
- if(unknown)note.textContent='Le scan est confirmé. Le scanner conserve le compte (scannedBy), pas encore le nom. La vérification Gecolia peut associer son nom dans cet aperçu sur le même navigateur, sans modifier Firebase. Aucun nouveau scan n’est nécessaire.';
+
+ if(unknown)note.textContent='Le scan est confirmé. Le scanner conserve le compte (scannedBy), pas toujours son nom. Les comptes inconnus restent sans nom. Aucun nouveau scan n’est nécessaire.';
 }
 function stopSubscriptions(){for(const off of unsub.splice(0)){try{off()}catch(_){}}ready=false;}
 async function resolveOperatorNames(){
@@ -112,35 +116,6 @@ async function resolveOperatorNames(){
  }
  if(ready)render();
 }
-function targetGecoliaUid(){
- const me=subscriber;if(!me)return null;
- const records=rows(movements).filter(e=>String(e.studentId)===String(me.id)&&e.day==='2026-10-23'&&e.stage==='boardingAM'&&e.source==='logistique-qr'&&String(e.qrRef||'').toUpperCase()===QR);
- return records.length===1&&records[0].scannedBy?String(records[0].scannedBy):null;
-}
-$('associate').onclick=async()=>{
- if(!ready||activeRole!=='direction')return;
- const uid=targetGecoliaUid();
- if(!uid){$('auditStatus').textContent='Compte du scan du 23 octobre non retrouvé. Aucun changement effectué.';return;}
- const btn=$('associate');btn.disabled=true;
- try{
-  const ref=database.ref(ROOT+'/roles/'+uid);
-  const role=(await ref.once('value')).val();
-  if(role?.enabled!==true||role.role!=='logistique')throw Error('Ce compte n’est pas un compte Logistique actif.');
-  const current=String(role.displayName||'').trim();
-  if(current&&current!=='Gecolia')throw Error('Ce compte porte déjà un autre nom : '+current+'. Aucun remplacement automatique.');
-  if(!confirm('Associer définitivement le nom « Gecolia » au compte Logistique ayant effectué le scan QR001 ? Les heures et les scans restent inchangés.'))return;
-  const transaction=await ref.transaction(v=>{
-   if(!v||v.enabled!==true||v.role!=='logistique')return;
-   if(v.displayName&&v.displayName!=='Gecolia')return;
-   return {...v,displayName:'Gecolia'};
-  },undefined,false);
-  if(!transaction.committed||transaction.snapshot.val()?.displayName!=='Gecolia')throw Error('Association non confirmée. Aucun nom enregistré.');
-  operatorNames.set(uid,'Gecolia');render();
-  $('auditStatus').textContent='Association réelle confirmée dans Firebase V3 : compte Logistique → Gecolia. Les scans existants sont inchangés.';
- }catch(e){
-  $('auditStatus').textContent='Association non enregistrée : '+String(e.message||e)+'. Les autorisations Firebase doivent permettre à la Direction de renseigner le nom du compte ; ne refais aucun scan.';
- }finally{btn.disabled=false}
-};
 async function refresh(){
  if(!ready||!database){setStatus('Connecte-toi en Direction dans cette page pour actualiser.');return}
  $('refresh').disabled=true;
