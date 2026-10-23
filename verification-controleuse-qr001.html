@@ -26,10 +26,10 @@ small{color:#6c7f92}
 <p id="loginHelp" class="hidden">Ouvre d'abord <a href="./scan-logistique.html">le scanner logistique G10 V3</a>, connecte-toi avec le compte de Gecolia, puis reviens ici avec le <b>même navigateur</b>.</p>
 <button id="check" class="secondary">Vérifier mon compte</button>
 <div id="verified" class="hidden">
-<p class="warning">Le compte connecté correspond bien au scan. Si tu confirmes que ce compte appartient à <b>Gecolia</b>, tu peux associer son nom à ce mouvement existant. Cela ne crée pas un nouveau scan et ne change pas l'heure.</p>
-<button id="name">Associer le nom « Gecolia » à ce mouvement</button>
+<p class="warning">Le compte connecté correspond bien au scan. Si tu confirmes que ce compte appartient à <b>Gecolia</b>, tu peux enregistrer localement le nom pour cet aperçu de test. Aucun scan ni aucune donnée Firebase ne sera modifié.</p>
+<button id="name">Reconnaître Gecolia dans cet aperçu</button>
 </div>
-<p><small>Seul le mouvement QR001 du 23/10/2026 est vérifié. Cette page ne crée aucun événement. L'association du nom exige un clic distinct et une confirmation explicite.</small></p>
+<p><small>Seul le mouvement QR001 du 23/10/2026 est vérifié. Cette page ne crée aucun événement. L'association est enregistrée uniquement dans ce navigateur, pas dans Firebase. La liaison définitive entre les comptes et les noms reste à intégrer.</small></p>
 </article></main>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -84,27 +84,24 @@ async function verify(){
   verified=true;uid=user.uid;recordRef=reference;
   if(event.scannedByName==='Gecolia'){status('CONFIRMÉ : ce compte a effectué le scan. Le mouvement porte déjà le nom Gecolia.');return;}
   if(event.scannedByName&&event.scannedByName!=='Gecolia'){status('CONFIRMÉ pour le compte connecté, mais un autre nom figure déjà sur le mouvement. Aucune modification automatique.');return;}
-  status('CONFIRMÉ : le compte connecté a bien validé cette montée QR001. Si ce compte est celui de Gecolia, l’association du nom peut être effectuée.');
+  status('CONFIRMÉ : le compte connecté a bien validé cette montée QR001. Si ce compte est celui de Gecolia, l’association locale du nom peut être effectuée.');
   $('verified').classList.remove('hidden');
  }catch(e){status('Vérification impossible : '+errorMessage(e)+'\nAucun événement modifié.');}
  finally{$('check').disabled=false}
 }
 $('check').onclick=verify;
-$('name').onclick=async()=>{
- if(!verified||!recordRef||!uid)return;
- if(!confirm('Confirmer que le compte connecté appartient à Gecolia et inscrire son nom sur le mouvement QR001 du 23 octobre ?'))return;
- $('name').disabled=true;
+$('name').onclick=()=>{
+ if(!verified||!uid)return;
+ if(!confirm('Associer localement le nom Gecolia au compte vérifié pour l’aperçu Apps sur ce navigateur ? Aucun enregistrement Firebase ne sera modifié.'))return;
  try{
-  const result=await recordRef.transaction(current=>{
-    if(!current||String(current.scannedBy||'')!==uid||current.studentId==null||current.qrRef!==QR||current.stage!==STAGE||current.day!==DAY||current.source!=='logistique-qr')return;
-    if(current.scannedByName&&current.scannedByName!=='Gecolia')return;
-    return {...current,scannedByName:'Gecolia'};
-  },undefined,false);
-  if(!result.committed||result.snapshot.val()?.scannedByName!=='Gecolia')throw Error('Aucune modification confirmée : vérifie les autorisations Firebase.');
-  status('CONFIRMÉ : ce scan est désormais attribué à Gecolia dans Firebase V3. Heure et étape inchangées. Actualise la vue Espace Parents.');
+  const k='g10_verified_controller_names_v1';
+  let map={};try{map=JSON.parse(localStorage.getItem(k)||'{}')}catch(_){}
+  if(!map||typeof map!=='object'||Array.isArray(map))map={};
+  map[uid]={name:'Gecolia',checkedAt:new Date().toISOString(),source:'auth-matched-scan-QR001'};
+  localStorage.setItem(k,JSON.stringify(map));
+  status('IDENTITÉ ASSOCIÉE SUR CE NAVIGATEUR : le compte qui a validé QR001 est désormais affiché comme « Gecolia » dans l’aperçu Parents ouvert depuis ce même navigateur. Aucun mouvement Firebase modifié.');
   $('verified').classList.add('hidden');
- }catch(e){status('L’identité du compte est vérifiée, mais Firebase a refusé l’inscription du nom : '+errorMessage(e)+'\nLe mouvement initial reste inchangé.')}
- finally{$('name').disabled=false}
+ }catch(e){status('Association locale impossible : '+errorMessage(e)+'. Aucun mouvement modifié.')}
 };
 window.addEventListener('load',verify);
 })();
