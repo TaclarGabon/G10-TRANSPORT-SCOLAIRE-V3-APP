@@ -50,7 +50,7 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 (()=>{"use strict";
 const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);
-let auth,activateFn,getFn,secret="",busy=false,timer=null;
+let auth,activateFn,getFn,secret="",activating=false,loading=false,timer=null;
 const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
 function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
 function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
@@ -83,8 +83,8 @@ function childCard(c){
  return host;
 }
 async function load(){
- if(!auth?.currentUser||busy)return;
- busy=true;$("reload").disabled=true;$("fetchStatus").textContent="Lecture G10 V3…";
+ if(!auth?.currentUser||loading)return;
+ loading=true;$("reload").disabled=true;$("fetchStatus").textContent="Lecture G10 V3…";
  try{
   const result=await getFn({day:$("day").value}),data=result.data||{};
   const host=$("children");host.replaceChildren();
@@ -92,7 +92,7 @@ async function load(){
   if(!data.children?.length)host.append(textNode("card","Aucun dossier associé."));
   $("fetchStatus").textContent=(data.children||[]).length+" enfant(s) · suivi actualisé à "+timeGab(data.updatedAt);
  }catch(e){$("fetchStatus").textContent=friendly(e)}
- finally{busy=false;$("reload").disabled=false}
+ finally{loading=false;$("reload").disabled=false}
 }
 $("enterParent").onclick=()=>show(auth?.currentUser?"parentSpace":"activation");
 $("enterStudent").onclick=()=>message("L'Espace Étudiants sera ouvert plus tard, à partir de la seconde.");
@@ -104,15 +104,15 @@ $("signOut").onclick=async()=>{
  await auth.signOut();show("activation");$("inviteInfo").textContent="Demande un nouveau lien personnel à G10.";
 };
 $("activate").onclick=async()=>{
- if(busy||!secret)return;
- busy=true;$("activate").disabled=true;$("activateStatus").textContent="Activation en cours…";
+ if(activating||!secret)return;
+ activating=true;$("activate").disabled=true;$("activateStatus").textContent="Activation en cours…";
  try{
   const result=await activateFn({token:secret});
   secret="";history.replaceState(null,"",location.pathname+location.search);
   await auth.signInWithCustomToken(result.data.customToken);
   $("activateStatus").textContent="Accès activé.";
  }catch(e){$("activateStatus").textContent=friendly(e)}
- finally{busy=false;$("activate").disabled=false}
+ finally{activating=false;$("activate").disabled=false}
 };
 secret=new URLSearchParams(location.hash.slice(1)).get("activation")||"";
 if(secret){$("activate").classList.remove("hidden");$("inviteInfo").textContent="Lien personnel G10 reconnu. Clique sur Activer mon accès familial.";show("activation")}
