@@ -1,0 +1,95 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G10 V3 — Préparer l'accès Parents</title>
+<style>:root{--navy:#103d73;--green:#087b52;--bg:#edf4fb;--ink:#1b3853;--line:#d9e3ef}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+header{background:var(--navy);padding:20px;color:white}main{max-width:760px;margin:20px auto;padding:0 15px}
+.card{background:#fff;border:1px solid var(--line);padding:20px;border-radius:15px;margin:15px 0}
+h1{font-size:23px;margin:0}h2{font-size:18px}label{display:block;margin:12px 0 6px;font-weight:650}
+input{padding:12px;width:100%;font:inherit;border:1px solid #b9d0e0;border-radius:8px}button,.btn{background:var(--green);color:white;font:inherit;font-weight:750;border:0;border-radius:9px;padding:11px 15px;cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.5;cursor:default}.muted{font-size:13px;color:#60788d;line-height:1.5}
+#status{padding:12px;border-radius:9px;background:#f9efda;white-space:pre-line}
+.hidden{display:none!important}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.item{padding:14px;border:1px solid var(--line);border-radius:10px;margin:9px 0;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.item button{white-space:nowrap}.item strong{display:block}.item small{display:block;color:#6a7d90;margin-top:4px}
+.good{background:#eefaf1;border-radius:9px;padding:14px}.gray{background:#e8f0f8;color:#193651}
+</style></head><body>
+<header><h1>🚌 G10 V3 — Accès individuels des parents</h1><div style="font-size:13px;margin-top:5px">Espace Direction privé — aucune modification du tableau Martina</div></header>
+<main>
+<section class="card" id="login">
+<h2>Connexion Direction</h2><p class="muted">Utilise les identifiants de ton compte Direction V3. La connexion ici est indépendante du scanner.</p>
+<form id="loginForm"><label>Email Direction<input id="email" type="email" autocomplete="username" required></label>
+<label>Mot de passe<input id="password" type="password" autocomplete="current-password" required></label>
+<p><button id="loginBtn" type="submit">Ouvrir les accès parents</button></p></form></section>
+<section id="admin" class="hidden">
+<div class="row"><strong id="account"></strong><button id="signout" class="gray">Fermer</button></div>
+<div class="card"><h2>1. Choisir un abonné existant</h2>
+<label>Rechercher un enfant ou un parent<input id="search" placeholder="Nom de l'enfant ou du parent"></label>
+<div id="candidates"></div></div>
+<div class="card hidden" id="share"><h2>2. Envoyer son accès personnel</h2>
+<p id="family"></p><p class="muted">Le lien expire dans 48 heures et ne peut être activé qu'une seule fois. Après activation, la session reste disponible sur l'appareil du parent.</p>
+<div class="row"><a id="whatsapp" class="btn" target="_blank" rel="noopener noreferrer">Envoyer par WhatsApp</a><button id="copy" type="button" class="gray">Copier le lien</button></div>
+<p id="copyState" class="muted"></p></div>
+</section>
+<p id="status" role="status">Connexion Firebase en attente.</p>
+<p class="muted">Les dossiers et les liens sont traités par le service d'accès familial, jamais inscrits dans le code public de cette page. Aucun PIN fictif ni dossier d'un autre parent ne sera publié.</p>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script>
+(()=>{"use strict";
+const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);let auth,listFn,inviteFn,options=[],currentLink="";
+function status(text){$("status").textContent=text}
+function errorText(e){const code=String(e?.code||"");if(code.includes("not-found")||code.includes("unavailable"))return "Le service d'invitation familiale n'est pas encore déployé. Aucun lien d'accès ne peut être envoyé pour l'instant.";return String(e?.message||e)}
+function visible(id,on){$(id).classList.toggle("hidden",!on)}
+function clear(){visible("login",true);visible("admin",false);visible("share",false);options=[];$("candidates").replaceChildren()}
+function render(){
+ const q=$("search").value.trim().toLowerCase(),host=$("candidates");host.replaceChildren();
+ for(const entry of options.filter(x=>(x.studentName+" "+x.guardian).toLowerCase().includes(q)).slice(0,60)){
+  const row=document.createElement("div");row.className="item";const block=document.createElement("div");
+  const name=document.createElement("strong");name.textContent=entry.studentName;block.append(name);
+  const meta=document.createElement("small");meta.textContent=[entry.school,entry.guardian,entry.phoneHint].filter(Boolean).join(" · ");block.append(meta);row.append(block);
+  const btn=document.createElement("button");btn.textContent="Préparer le lien";btn.disabled=!entry.eligible;row.append(btn);
+  btn.onclick=async()=>{
+   btn.disabled=true;status("Préparation du lien pour "+entry.studentName+"…");visible("share",false);
+   try{
+    const result=(await inviteFn({studentId:entry.studentId})).data;
+    currentLink=result.link;const contact=String(result.parentPhone||"").replace(/^\+/,"");
+    $("family").textContent="Parent : "+result.guardian+" · Enfant(s) : "+result.children.join(", ");
+    const msg="Bonjour, voici votre lien privé G10 Apps Scolaire pour suivre les trajets de vos enfants. Il expire dans 48 heures et s'active une seule fois : "+result.link;
+    $("whatsapp").href="https://wa.me/"+encodeURIComponent(contact)+"?text="+encodeURIComponent(msg);
+    $("copyState").textContent="Lien prêt. Envoie-le uniquement au contact du parent indiqué dans la V3.";
+    visible("share",true);status("Lien familial créé. Il n'a pas encore été envoyé.");$("share").scrollIntoView({block:"start",behavior:"smooth"});
+   }catch(e){status("Aucun lien créé : "+errorText(e))}
+   finally{btn.disabled=false}
+  };
+  host.append(row);
+ }
+ if(!host.children.length){const p=document.createElement("p");p.textContent="Aucun abonné correspondant.";host.append(p)}
+}
+$("search").oninput=render;
+$("copy").onclick=async()=>{if(!currentLink)return;try{await navigator.clipboard.writeText(currentLink);$("copyState").textContent="Lien copié."; }catch(e){$("copyState").textContent="Copie indisponible : utilise Envoyer par WhatsApp."}};
+$("loginForm").onsubmit=async e=>{
+ e.preventDefault();$("loginBtn").disabled=true;
+ try{status("Connexion et vérification Direction…");
+  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);
+  $("password").value="";
+ }catch(e){status("Connexion refusée : "+errorText(e));$("password").value="";}
+ finally{$("loginBtn").disabled=false}
+};
+$("signout").onclick=async()=>{await auth.signOut();clear();status("Déconnecté de l'espace de préparation.")};
+if(!window.firebase?.auth||!window.firebase?.functions){status("Firebase indisponible. Vérifie Internet.");return}
+const app=firebase.apps.find(a=>a.name==="g10-parent-invites")||firebase.initializeApp(cfg,"g10-parent-invites");
+auth=app.auth();const api=app.functions("europe-west1");
+listFn=api.httpsCallable("listG10ParentCandidates");inviteFn=api.httpsCallable("prepareG10ParentInvitation");
+auth.onAuthStateChanged(async user=>{
+ if(!user){clear();return}
+ visible("login",false);visible("admin",true);$("account").textContent="Session Direction : "+(user.email||"Compte G10");
+ try{status("Chargement des abonnés depuis la V3…");
+  const r=(await listFn({})).data;options=r.families||[];render();status(options.length+" abonnés disponibles. Choisis un parent puis clique sur Préparer le lien.");
+ }catch(e){status(errorText(e))}
+});
+})();
+</script></body></html>
