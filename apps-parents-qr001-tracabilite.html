@@ -20,11 +20,22 @@ footer{font-size:12px;color:#5b7087;line-height:1.5;padding:10px 0}
 <h1>Suivi de mon enfant — aperçu privé</h1>
 <div class="card"><strong>LEHOUMA Omer Emmanuel</strong><div class="small">Prytanée militaire · 6e · QR001</div></div>
 <div class="row"><label>Date à Libreville <input id="day" type="date"></label><button id="today" class="ghost">Aujourd’hui à Libreville</button><button id="refresh">Actualiser</button></div>
-<p id="status" class="status">Vérification de la session V3…</p>
+<section id="gate" class="card"><strong>Accès Direction — aperçu Parents</strong>
+ <p class="small">Cette connexion est indépendante de celle du scanner Gecolia. Elle n'altère pas l'Administration V3.</p>
+ <form id="loginForm">
+ <label for="directionEmail">Adresse e-mail du compte Direction</label>
+ <input id="directionEmail" type="email" autocomplete="username" required style="max-width:100%;width:100%;margin:6px 0 12px">
+ <label for="directionPassword">Mot de passe Direction</label>
+ <input id="directionPassword" type="password" autocomplete="current-password" required style="max-width:100%;width:100%;margin:6px 0 12px">
+ <button id="loginBtn" type="submit">Ouvrir l'aperçu Parents</button>
+ </form>
+ </section>
+ <div id="signedIn" class="row hide card"><span id="who"></span><button id="signout" class="ghost">Fermer cette connexion</button></div>
+ <p id="status" class="status">Connecte le compte Direction pour lire le suivi d'Emmanuel.</p>
 <div id="steps"></div>
 <p id="identityNotice" class="status hide"></p>
-<p><a class="btn ghost" href="verification-controleuse-qr001.html">Vérifier Gecolia (même navigateur pour l’aperçu)</a></p>
-<footer>Vue réservée à l’Administration et à la Direction G10. Le nom vérifié est mémorisé seulement dans ce navigateur pour les tests ; aucun mouvement Firebase n’est modifié. Les accès familiaux restent à développer.</footer>
+<p class="small">Compte Gecolia déjà vérifié. Cette vue concerne uniquement la lecture en Direction ; aucun nouveau scan ni aucune autre vérification ne sont nécessaires.</p>
+<footer>Vue réservée à l’Administration/Direction, avec une connexion indépendante du compte Logistique. Le nom vérifié est mémorisé seulement dans ce navigateur ; aucune donnée Firebase n’est modifiée. Les accès des familles restent à développer.</footer>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -35,7 +46,7 @@ const cfg={apiKey:'AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o',authDomain:'g10-tran
 const ROOT='g10TransportScolaireV3',DATA=ROOT+'/data',QR='G10-TP-SCOL-QR001';
 const names={boardingAM:'Montée du matin',schoolArrival:'Arrivée à l’école',boardingPM:'Montée au retour',homeDrop:'Dépose du soir'};
 const confirmations={boardingAM:'Montée confirmée',schoolArrival:'Arrivée confirmée',boardingPM:'Montée au retour confirmée',homeDrop:'Dépose confirmée'};
-const $=id=>document.getElementById(id),order=Object.keys(names);let database,unsub=[],movements={},subscriber=null,ready=false;
+const $=id=>document.getElementById(id),order=Object.keys(names);let database,previewApp,previewAuth,unsub=[],movements={},subscriber=null,ready=false;
 function day(date){const parts=new Intl.DateTimeFormat('en-GB',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Africa/Libreville'}).formatToParts(date);const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day}
 function rows(value){if(Array.isArray(value))return value.filter(Boolean);return value&&typeof value==='object'?Object.entries(value).filter(([,x])=>x&&typeof x==='object').map(([id,v])=>({...v,id:v.id||id})):[]}
 function fmt(value){const n=typeof value==='number'?value:Date.parse(value);if(!Number.isFinite(n))return 'Heure non disponible';return new Intl.DateTimeFormat('fr-FR',{timeZone:'Africa/Libreville',hour:'2-digit',minute:'2-digit'}).format(new Date(n))}
@@ -79,25 +90,73 @@ function render(){
  const note=$('identityNotice');note.classList.toggle('hide',!unknown);
  if(unknown)note.textContent='Le scan est confirmé. Le scanner conserve le compte (scannedBy), pas encore le nom. La vérification Gecolia peut associer son nom dans cet aperçu sur le même navigateur, sans modifier Firebase. Aucun nouveau scan n’est nécessaire.';
 }
-async function refresh(){if(!database)return; $('refresh').disabled=true;try{const [s,m]=await Promise.all([database.ref(DATA+'/subs').once('value'),database.ref(DATA+'/movements').once('value')]);subscriber=rows(s.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;movements=m.val()||{};render()}catch(e){setStatus('Lecture refusée : '+String(e.message||e))}finally{$('refresh').disabled=false}}
-$('day').value=day(new Date());$('day').onchange=render;$('today').onclick=()=>{$('day').value=day(new Date());render()};$('refresh').onclick=refresh;
-if(!window.firebase?.auth||!window.firebase?.database){setStatus('Firebase indisponible. Vérifie la connexion Internet.');return}
-if(!firebase.apps.length)firebase.initializeApp(cfg);
-database=firebase.database();
-const unAuth=firebase.auth().onAuthStateChanged(async user=>{
- if(!user){setStatus('Connecte-toi d’abord dans l’Administration V3 (même navigateur), puis reviens ici.');return}
+function stopSubscriptions(){for(const off of unsub.splice(0)){try{off()}catch(_){}}ready=false;}
+async function refresh(){
+ if(!ready||!database){setStatus('Connecte-toi en Direction dans cette page pour actualiser.');return}
+ $('refresh').disabled=true;
+ try{
+  const [subSnapshot,movSnapshot]=await Promise.all([database.ref(DATA+'/subs').once('value'),database.ref(DATA+'/movements').once('value')]);
+  subscriber=rows(subSnapshot.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;
+  movements=movSnapshot.val()||{};render();
+ }catch(e){setStatus('Lecture refusée : '+String(e.message||e)+' — vérifie le compte Direction dans cet aperçu.')}
+ finally{$('refresh').disabled=false}
+}
+$('day').value=day(new Date());
+$('day').onchange=()=>{if(ready)render()};
+$('today').onclick=()=>{$('day').value=day(new Date());if(ready)render()};
+$('refresh').onclick=refresh;
+function lock(message){
+ stopSubscriptions();subscriber=null;movements={};$('steps').replaceChildren();
+ $('identityNotice').classList.add('hide');
+ $('gate').classList.remove('hide');$('signedIn').classList.add('hide');
+ setStatus(message||'Connecte le compte Direction pour afficher les mouvements.');
+}
+async function begin(user){
+ if(!user){lock();return}
  try{
   const role=(await database.ref(ROOT+'/roles/'+user.uid).once('value')).val();
-  if(role?.enabled!==true||!['direction','admin'].includes(role.role)){setStatus('Cette page de test nécessite une session Direction ou Administration autorisée.');return}
-  if(ready)return;ready=true;
+  if(role?.enabled!==true||!['direction','admin'].includes(role.role)){
+    lock('Ce compte n’a pas le rôle Direction/Administration actif. Utilise les identifiants Direction.');return;
+  }
+  stopSubscriptions();ready=true;
+  $('gate').classList.add('hide');$('signedIn').classList.remove('hide');
+  $('who').textContent='Connecté en '+(role.role==='direction'?'Direction':'Administration')+' · '+(user.email||'compte vérifié');
   const subRef=database.ref(DATA+'/subs'),moveRef=database.ref(DATA+'/movements');
   const subHandler=s=>{subscriber=rows(s.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;render()};
   const moveHandler=s=>{movements=s.val()||{};render()};
-  const error=e=>setStatus('Écoute Firebase refusée : '+String(e.message||e));
-  subRef.on('value',subHandler,error);moveRef.on('value',moveHandler,error);
+  const fail=e=>{
+    lock('Firebase refuse cette lecture : '+String(e.message||e)+'. Le compte utilisé ici n’a pas les droits nécessaires.');
+  };
+  subRef.on('value',subHandler,fail);
+  moveRef.on('value',moveHandler,fail);
   unsub.push(()=>subRef.off('value',subHandler),()=>moveRef.off('value',moveHandler));
- }catch(e){setStatus('Vérification du compte impossible : '+String(e.message||e))}
-});
-window.addEventListener('pagehide',()=>{unAuth();unsub.forEach(x=>x())},{once:true});
+ }catch(e){lock('Vérification du rôle impossible : '+String(e.message||e))}
+}
+if(!window.firebase?.auth||!window.firebase?.database){
+ lock('Firebase indisponible. Vérifie la connexion Internet et recharge la page.');
+ return;
+}
+// Firebase app named separately so scanner logistique and administration sessions are not overwritten.
+previewApp=firebase.apps.find(a=>a.name==='g10-parent-preview')||firebase.initializeApp(cfg,'g10-parent-preview');
+previewAuth=previewApp.auth();database=previewApp.database();
+$('loginForm').onsubmit=async e=>{
+ e.preventDefault();const button=$('loginBtn');button.disabled=true;
+ try{
+  setStatus('Connexion Direction en cours…');
+  await previewAuth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  await previewAuth.signInWithEmailAndPassword($('directionEmail').value.trim(),$('directionPassword').value);
+  $('directionPassword').value='';
+ }catch(err){
+  $('directionPassword').value='';
+  lock('Connexion refusée : '+String(err.message||err)+'. Vérifie les identifiants Direction.');
+ }finally{button.disabled=false}
+};
+$('signout').onclick=async()=>{
+ stopSubscriptions();
+ await previewAuth.signOut();
+ lock('Aperçu fermé. Les autres sessions G10 ne sont pas modifiées.');
+};
+const unAuth=previewAuth.onAuthStateChanged(u=>{if(u)begin(u);else if(!ready)lock()});
+window.addEventListener('pagehide',()=>{unAuth();stopSubscriptions()},{once:true});
 })();
 </script></body></html>
