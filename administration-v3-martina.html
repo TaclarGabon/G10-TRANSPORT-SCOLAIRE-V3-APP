@@ -882,7 +882,8 @@ async function reloadV3(){
  if(!data)throw Error('La branche Firebase V3/data est vide. Aucun chargement depuis V2.');
  applyV3(data);
  authorized=true;
- message('Connexion établie : '+subs.length+' abonnés, '+expense.length+' dépenses. Profil : '+(activeRole==='direction'?'Direction':'Administration')+'.','success');
+ const profileLabel=activeRole==='direction'?'Direction':'Administration';document.querySelector('.space-title-text').textContent='G10 TRANSPORT SCOLAIRE — '+profileLabel;document.title='G10 Transport Scolaire — '+profileLabel;
+ message('Connexion établie : '+subs.length+' abonnés, '+expense.length+' dépenses. Profil : '+profileLabel+'.','success');
  gate.querySelector('#v3-refresh').hidden=false;gate.querySelector('#v3-signout').hidden=false;
  gate.querySelector('#v3-login-form').style.display='none';
  gate.querySelector('h2').hidden=true;gate.querySelector('p').hidden=true;gate.classList.add('v3-connected');
@@ -1223,10 +1224,18 @@ function v3ExpenseReceiptButton(e){
 function v3ExpenseTabs(){
  return '<div class="v3-expense-sections">'+[['fuel','Carburant'],['salary','Salaires'],['common','Charges communes']].map(x=>'<button type="button" data-exp-section="'+x[0]+'" class="'+(v3ExpenseSection===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</div>';
 }
+function v3FuelPeriodTotals(){
+ const iso=v3CostISO(v3CostReportState.date)||new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const [from,to]=v3CostWindow(v3CostReportState.period,iso);let amount=0;
+ for(const e of expense){if(!/carburant|gasoil|diesel|essence|fuel/i.test(String(e.type||'')))continue;const day=v3CostISO(e.date);if(day&&day>=from&&day<=to)amount+=moneyNum(e.amount);}
+ return {from,to,amount};
+}
+function v3FuelPeriodLabel(){const x=v3FuelPeriodTotals();return 'Carburant · '+x.from+' au '+x.to;}
 function v3ExpenseSummaryTotals(){
  const active=expense.filter(e=>!e.v3Archived&&!e.noExpense);
  const sum=group=>active.filter(e=>v3ExpenseGroup(e)===group).reduce((n,e)=>n+moneyNum(e.amount),0);
- return '<div class="report-stats"><div class="report-stat blue-outline"><div class="small">Carburant</div><strong>'+cash(sum('fuel'))+'</strong></div><div class="report-stat yellow-outline"><div class="small">Salaires</div><strong>'+cash(sum('salary'))+'</strong></div><div class="report-stat green-outline"><div class="small">Charges communes</div><strong>'+cash(sum('common'))+'</strong></div></div>';
+ const fuel=v3FuelPeriodTotals();
+ return '<div class="report-stats"><div class="report-stat blue-outline"><div class="small" id="v3-fuel-kpi-label">'+esc(v3FuelPeriodLabel())+'</div><strong id="v3-fuel-kpi-value">'+cash(fuel.amount)+'</strong></div><div class="report-stat yellow-outline"><div class="small">Salaires · toutes périodes</div><strong>'+cash(sum('salary'))+'</strong></div><div class="report-stat green-outline"><div class="small">Charges communes · toutes périodes</div><strong>'+cash(sum('common'))+'</strong></div></div>';
 }
 function v3ExpenseRows(group){
  return expense.map((e,i)=>({...e,_index:i})).filter(e=>!e.v3Archived&&v3ExpenseGroup(e)===group);
@@ -1842,10 +1851,11 @@ function v3FuelSummaryHTML(){
 }
 function v3AttachFuelSummary(){
  const period=p.querySelector('#v3-fuel-period'),date=p.querySelector('#v3-fuel-date');
- const refresh=()=>{if(!v3GuardUnsavedEdit())return;v3RenderFuelSummary();};
+ const refresh=()=>{if(!v3GuardUnsavedEdit())return;v3RenderFuelSummary();v3UpdateFuelKpi();};
  if(period)period.onchange=()=>{v3CostReportState.period=period.value;refresh();};
  if(date)date.onchange=()=>{if(v3CostISO(date.value)){v3CostReportState.date=date.value;refresh();}};
 }
+function v3UpdateFuelKpi(){const label=p.querySelector('#v3-fuel-kpi-label'),value=p.querySelector('#v3-fuel-kpi-value');if(!label||!value)return;const totals=v3FuelPeriodTotals();label.textContent='Carburant · '+totals.from+' au '+totals.to;value.textContent=cash(totals.amount);}
 function v3RenderFuelSummary(){
  const old=p.querySelector('#v3-fuel-summary');
  if(!old)return;
