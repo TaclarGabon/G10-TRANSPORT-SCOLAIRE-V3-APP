@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G10 Apps Scolaire — Emmanuel (trace des contrôles)</title>
+<style>
+:root{--ink:#173452;--blue:#123d78;--green:#087a46;--bg:#eff5fb;--line:#dae6f2}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px system-ui,-apple-system,Segoe UI,Arial;color:var(--ink)}
+main{max-width:680px;margin:18px auto;padding:12px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+h1{font-size:19px;margin:14px 0 6px}h2{font-size:17px}.small{font-size:13px;color:#59748b}
+.card{background:#fff;border-radius:15px;padding:16px;margin:11px 0;border:1px solid #dbe5f1}
+strong{font-weight:750}.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+button,a.btn{background:#087c49;color:#fff;border:0;border-radius:9px;padding:10px 13px;cursor:pointer;font:inherit;font-weight:650;text-decoration:none;display:inline-block}
+button:disabled{opacity:.5;cursor:wait}.ghost{background:#e3edf7;color:var(--ink)}
+input{font:inherit;border:1px solid #c6d7e8;border-radius:7px;padding:8px;max-width:180px}
+.status{background:#fff2db;padding:12px;border-radius:10px;font-size:13px;line-height:1.5}
+.good{color:var(--green)}.await{color:#71869a}.hide{display:none}
+footer{font-size:12px;color:#5b7087;line-height:1.5;padding:10px 0}
+</style></head><body><main>
+<header><strong>🚌 G10 APPS SCOLAIRE</strong><a href="administration-v3.html" class="btn ghost">Administration V3</a></header>
+<div class="row"><button type="button" disabled>👨‍👩‍👧 Espace Parents</button><button class="ghost" type="button" disabled>🎓 Espace Étudiants</button></div>
+<h1>Suivi de mon enfant — aperçu privé</h1>
+<div class="card"><strong>LEHOUMA Omer Emmanuel</strong><div class="small">Prytanée militaire · 6e · QR001</div></div>
+<div class="row"><label>Date à Libreville <input id="day" type="date"></label><button id="today" class="ghost">Aujourd’hui à Libreville</button><button id="refresh">Actualiser</button></div>
+<p id="status" class="status">Vérification de la session V3…</p>
+<div id="steps"></div>
+<p id="identityNotice" class="status hide"></p>
+<p><a class="btn ghost" href="verification-controleuse-qr001.html">Vérifier le compte Gecolia (sur son téléphone)</a></p>
+<footer>Vue réservée à l’Administration et à la Direction G10. Elle lit les mouvements Firebase V3 en direct sans créer ou modifier de scans. Aucun accès familial n’est activé dans cette page.</footer>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+(()=>{'use strict';
+const cfg={apiKey:'AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o',authDomain:'g10-transport-scolaire-v2.firebaseapp.com',databaseURL:'https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app',projectId:'g10-transport-scolaire-v2',appId:'1:836907463780:web:585e2b4f075c8ff172db71'};
+const ROOT='g10TransportScolaireV3',DATA=ROOT+'/data',QR='G10-TP-SCOL-QR001';
+const names={boardingAM:'Montée du matin',schoolArrival:'Arrivée à l’école',boardingPM:'Montée au retour',homeDrop:'Dépose du soir'};
+const confirmations={boardingAM:'Montée confirmée',schoolArrival:'Arrivée confirmée',boardingPM:'Montée au retour confirmée',homeDrop:'Dépose confirmée'};
+const $=id=>document.getElementById(id),order=Object.keys(names);let database,unsub=[],movements={},subscriber=null,ready=false;
+function day(date){const parts=new Intl.DateTimeFormat('en-GB',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Africa/Libreville'}).formatToParts(date);const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day}
+function rows(value){if(Array.isArray(value))return value.filter(Boolean);return value&&typeof value==='object'?Object.entries(value).filter(([,x])=>x&&typeof x==='object').map(([id,v])=>({...v,id:v.id||id})):[]}
+function fmt(value){const n=typeof value==='number'?value:Date.parse(value);if(!Number.isFinite(n))return 'Heure non disponible';return new Intl.DateTimeFormat('fr-FR',{timeZone:'Africa/Libreville',hour:'2-digit',minute:'2-digit'}).format(new Date(n))}
+function setStatus(s){$('status').textContent=s}
+function render(){
+ const selected=$('day').value, all=rows(movements);
+ const me=subscriber;
+ const mine=me?all.filter(e=>String(e.studentId)===String(me.id)&&String(e.day)===selected&&order.includes(e.stage)):[];
+ const assigned=new Map();
+ for(const e of mine.sort((a,b)=>Number(a.atMs||0)-Number(b.atMs||0)))assigned.set(e.stage,e);
+ // Only a previously verified, movement-stored name may label other scans made by the same Firebase UID.
+ const confirmedUidNames=new Map();
+ for(const e of all){if(e.source==='logistique-qr'&&e.scannedBy&&typeof e.scannedByName==='string'&&e.scannedByName.trim())confirmedUidNames.set(String(e.scannedBy),e.scannedByName.trim())}
+ const contain=$('steps');contain.replaceChildren();
+ let unknown=0;
+ for(const stage of order){
+  const e=assigned.get(stage),card=document.createElement('div');card.className='card';
+  const headline=document.createElement('strong');headline.textContent=(order.indexOf(stage)+1)+'. '+names[stage];card.append(headline);
+  const p=document.createElement('p');p.style.marginBottom='2px';
+  if(!e){p.className='await';p.textContent='En attente'}
+  else{
+   const identity=e.source==='logistique-qr'?(String(e.scannedByName||'').trim()||confirmedUidNames.get(String(e.scannedBy||''))||''): '';
+   p.className='good';p.textContent=fmt(e.atMs||e.createdAt)+' — '+confirmations[stage];card.append(p);
+   const audit=document.createElement('div');audit.className='small';
+   if(identity){audit.textContent='Validé par '+identity; audit.className='small good'}
+   else if(e.source==='logistique-qr'){unknown++;audit.textContent='Contrôleuse : identité non encore associée au compte'}
+   else audit.textContent=e.source==='direction-manual'?'Enregistré par la Direction':'Source non précisée';
+   card.append(audit);
+  }
+  if(!e)card.append(p);
+  contain.append(card);
+ }
+ setStatus(me?'QR001 retrouvé · '+mine.length+' mouvement(s) au '+selected+' · Écoute Firebase V3 active.':'Fiche QR001 introuvable dans les abonnés V3.');
+ const note=$('identityNotice');note.classList.toggle('hide',!unknown);
+ if(unknown)note.textContent='Le scan est confirmé. Le code du scanner stocke l’identifiant du compte (scannedBy), mais pas encore son nom. Pour afficher « Validé par Gecolia », vérifie et associe son compte une fois à partir du lien ci-dessous. Aucun nouveau scan n’est nécessaire.';
+}
+async function refresh(){if(!database)return; $('refresh').disabled=true;try{const [s,m]=await Promise.all([database.ref(DATA+'/subs').once('value'),database.ref(DATA+'/movements').once('value')]);subscriber=rows(s.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;movements=m.val()||{};render()}catch(e){setStatus('Lecture refusée : '+String(e.message||e))}finally{$('refresh').disabled=false}}
+$('day').value=day(new Date());$('day').onchange=render;$('today').onclick=()=>{$('day').value=day(new Date());render()};$('refresh').onclick=refresh;
+if(!window.firebase?.auth||!window.firebase?.database){setStatus('Firebase indisponible. Vérifie la connexion Internet.');return}
+if(!firebase.apps.length)firebase.initializeApp(cfg);
+database=firebase.database();
+const unAuth=firebase.auth().onAuthStateChanged(async user=>{
+ if(!user){setStatus('Connecte-toi d’abord dans l’Administration V3 (même navigateur), puis reviens ici.');return}
+ try{
+  const role=(await database.ref(ROOT+'/roles/'+user.uid).once('value')).val();
+  if(role?.enabled!==true||!['direction','admin'].includes(role.role)){setStatus('Cette page de test nécessite une session Direction ou Administration autorisée.');return}
+  if(ready)return;ready=true;
+  const subRef=database.ref(DATA+'/subs'),moveRef=database.ref(DATA+'/movements');
+  const subHandler=s=>{subscriber=rows(s.val()).find(x=>String(x.qrRef||'').toUpperCase()===QR)||null;render()};
+  const moveHandler=s=>{movements=s.val()||{};render()};
+  const error=e=>setStatus('Écoute Firebase refusée : '+String(e.message||e));
+  subRef.on('value',subHandler,error);moveRef.on('value',moveHandler,error);
+  unsub.push(()=>subRef.off('value',subHandler),()=>moveRef.off('value',moveHandler));
+ }catch(e){setStatus('Vérification du compte impossible : '+String(e.message||e))}
+});
+window.addEventListener('pagehide',()=>{unAuth();unsub.forEach(x=>x())},{once:true});
+})();
+</script></body></html>
