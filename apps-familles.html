@@ -16,7 +16,11 @@ button.primary,.primary{display:inline-block;background:var(--green);color:white
 button.secondary{background:#e5edf6;color:var(--ink);border:0;border-radius:10px;padding:11px 15px;font-weight:730}button:disabled{opacity:.5;cursor:default}
 .muted{color:#637a8f;font-size:14px;line-height:1.5}.note{border-radius:10px;padding:13px;background:#fff3d9;font-size:14px;line-height:1.5}
 .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.good{color:#087d51}
-.step{margin:10px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.step b{display:block;margin-bottom:6px}
+.step{margin:10px 0;padding:15px;border:1px solid var(--line);border-radius:12px}
+.child-pick{width:100%;border:1px solid #c7d9e8;border-radius:12px;background:#f8fcff;color:var(--ink);padding:17px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
+.child-pick strong{font-size:17px}.child-pick .school{display:block;font-size:13px;color:#59788b;margin-top:6px}
+.child-pick .arrow{color:#1475cc;font-size:24px;font-weight:bold}
+.child-back{background:#e6eef8;color:#123d70;border:0;border-radius:9px;padding:10px 13px;margin-bottom:8px;font-weight:700}.step b{display:block;margin-bottom:6px}
 time{color:var(--green);font-weight:750}input[type=date]{border-radius:8px;border:1px solid #c5d7e6;padding:10px}
 footer{font-size:12px;color:#60788d;padding:20px 0}
 </style></head><body>
@@ -63,7 +67,7 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 (()=>{"use strict";
 const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);
-let auth,sendPhoneCodeFn,checkPhoneCodeFn,getFn,loginPhone="",activating=false,loading=false,timer=null;
+let auth,sendPhoneCodeFn,checkPhoneCodeFn,getFn,loginPhone="",activating=false,loading=false,timer=null,selectedChildId=null;
 const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
 function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
 function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
@@ -101,8 +105,31 @@ async function load(){
  try{
   const result=await getFn({day:$("day").value}),data=result.data||{};
   const host=$("children");host.replaceChildren();
-  for(const c of data.children||[])host.append(childCard(c));
-  if(!data.children?.length)host.append(textNode("card","Aucun dossier associé."));
+  const children=data.children||[];
+  if(!children.length){host.append(textNode("card","Aucun dossier associé."));selectedChildId=null;}
+  else if(children.length===1){
+    selectedChildId=String(children[0].id);
+    host.append(childCard(children[0]));
+  }else{
+    const selected=children.find(c=>String(c.id)===String(selectedChildId));
+    if(selected){
+      const back=document.createElement("button");back.className="child-back";back.textContent="← Retour à mes enfants";
+      back.onclick=()=>{selectedChildId=null;load()};host.append(back,childCard(selected));
+    }else{
+      selectedChildId=null;
+      const title=document.createElement("h2");title.textContent="Mes enfants";host.append(title);
+      const explain=textNode("muted","Choisissez l'enfant dont vous souhaitez consulter les trajets.");host.append(explain);
+      for(const c of children){
+        const pick=document.createElement("button");pick.type="button";pick.className="child-pick";
+        const left=document.createElement("span"),name=document.createElement("strong"),school=document.createElement("span");
+        name.textContent=c.name||"Enfant";school.className="school";school.textContent=[c.school,c.className].filter(Boolean).join(" · ");
+        left.append(name,school);const arrow=document.createElement("span");arrow.className="arrow";arrow.textContent="→";
+        pick.append(left,arrow);
+        pick.onclick=()=>{selectedChildId=String(c.id);load()};
+        host.append(pick);
+      }
+    }
+  }
   $("fetchStatus").textContent=(data.children||[]).length+" enfant(s) · suivi actualisé à "+timeGab(data.updatedAt);
  }catch(e){$("fetchStatus").textContent=friendly(e)}
  finally{loading=false;$("reload").disabled=false}
@@ -114,7 +141,7 @@ $("day").value=dayGab();$("today").onclick=()=>{$("day").value=dayGab();load()};
 $("day").onchange=$("reload").onclick=load;
 $("signOut").onclick=async()=>{
  if(!confirm("Se déconnecter ? Une nouvelle vérification WhatsApp sera nécessaire lors de ta prochaine connexion."))return;
- await auth.signOut();loginPhone="";$("parentCode").value="";$("codeZone").classList.add("hidden");show("activation");
+ selectedChildId=null;await auth.signOut();loginPhone="";$("parentCode").value="";$("codeZone").classList.add("hidden");show("activation");
 };
 $("parentNumber").oninput=()=>{
  const raw=$("parentNumber").value.replace(/\D/g,"").slice(0,8);
