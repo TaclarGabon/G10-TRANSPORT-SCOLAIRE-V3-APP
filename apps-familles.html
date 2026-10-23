@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>G10 Apps Scolaire — Familles</title>
+<style>
+:root{--navy:#07356c;--green:#087d51;--ink:#173450;--bg:#eef6fc;--line:#d6e3ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+.hidden{display:none!important}button,input{font:inherit}button{cursor:pointer}
+.hero{background:linear-gradient(115deg,#07366f 10%,#0c5789 70%,#0a8558);color:#fff;padding:23px 20px 40px}
+.hero h1{font-size:clamp(29px,6vw,40px);margin:20px 0 8px}.hero small{font-weight:750}
+.zones{display:flex;gap:10px;margin-top:14px}.zones span{border:1px solid #fff8;border-radius:40px;padding:5px 12px;font-size:13px;font-weight:700}
+.wrap{max-width:760px;margin:auto;padding:19px 15px 65px}
+h2{font-size:22px;margin:12px 0}h3{font-size:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin:12px 0;box-shadow:0 3px 15px #16436c0d}
+.choice{display:block;text-align:left;width:100%;border:2px solid var(--line);border-radius:16px;padding:22px;background:#fff;margin:14px 0;color:var(--ink)}.choice:first-child{background:#f1fbf4;border-color:#0c8b5b}
+.choice strong{display:block;font-size:21px}.choice span{display:block;font-size:14px;color:#587186;margin-top:7px}
+button.primary,.primary{display:inline-block;background:var(--green);color:white;border:0;border-radius:10px;padding:12px 16px;font-weight:750;text-decoration:none}
+button.secondary{background:#e5edf6;color:var(--ink);border:0;border-radius:10px;padding:11px 15px;font-weight:730}button:disabled{opacity:.5;cursor:default}
+.muted{color:#637a8f;font-size:14px;line-height:1.5}.note{border-radius:10px;padding:13px;background:#fff3d9;font-size:14px;line-height:1.5}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.good{color:#087d51}
+.step{margin:10px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.step b{display:block;margin-bottom:6px}
+time{color:var(--green);font-weight:750}input[type=date]{border-radius:8px;border:1px solid #c5d7e6;padding:10px}
+footer{font-size:12px;color:#60788d;padding:20px 0}
+</style></head><body>
+<header class="hero"><small>🚌 G10 TRANSPORT SCOLAIRE</small><div class="zones"><span>📍 Akanda</span><span>📍 Owendo</span></div><h1>Bienvenue sur <span style="color:#ffd146">G10 Apps Scolaire</span></h1><p>Sécurité · Ponctualité · Suivi</p></header>
+<main class="wrap">
+<section id="home"><h2>Choisir mon espace</h2>
+<button id="enterParent" class="choice"><strong>👨‍👩‍👧 Espace Parents</strong><span>Départ, arrivée à l'école, retour et dépose de mes enfants</span></button>
+<button id="enterStudent" class="choice"><strong>🎓 Espace Étudiants</strong><span>À partir de la seconde — activation ultérieure</span></button>
+<p class="muted">L'application montre uniquement les informations de transport de ta famille.</p></section>
+<section id="activation" class="hidden">
+<button id="backA" class="secondary">← Accueil</button><h2>Mon accès Parents</h2><div class="card">
+<p>Pour accéder à ton espace, ouvre le <b>lien personnel</b> que G10 t'a envoyé sur WhatsApp.</p>
+<div id="inviteInfo" class="note">Aucune adresse e-mail et aucun mot de passe Direction ne sont nécessaires.</div>
+<p><button id="activate" class="primary hidden">Activer mon accès familial</button></p><p id="activateStatus" class="muted" role="status"></p>
+</div><p class="muted">Le lien ne fonctionne qu'une fois. Ton téléphone restera connecté après l'activation ; sur un nouvel appareil, demande un autre lien à G10.</p>
+</section>
+<section id="parentSpace" class="hidden">
+<div class="row"><button id="backB" class="secondary">← Accueil</button><button id="signOut" class="secondary">Déconnexion</button></div>
+<h2>👨‍👩‍👧 Espace Parents</h2>
+<div class="card"><div class="row"><label>Date (Libreville) <input id="day" type="date"></label><button id="today" class="secondary">Aujourd'hui</button><button id="reload" class="primary">Actualiser</button></div><p id="fetchStatus" class="muted" role="status">Lecture en cours…</p></div>
+<div id="children"></div>
+<p class="muted">Mise à jour automatique toutes les 30 secondes lorsque cette page est ouverte. Les heures sont celles de Libreville.</p>
+</section>
+<p id="error" class="note hidden" role="alert"></p>
+<footer>G10 Apps Scolaire · Accès familial individuel. L'application n'affiche pas l'Administration.</footer>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script>
+(()=>{"use strict";
+const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);
+let auth,activateFn,getFn,secret="",busy=false,timer=null;
+const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
+function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
+function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
+function dayGab(){const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Libreville",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day}
+function timeGab(ms){return Number.isFinite(Number(ms))?new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit"}).format(new Date(Number(ms))):"Heure non disponible"}
+function friendly(e){const k=String(e?.code||"");if(k.includes("not-found")||k.includes("unavailable"))return "Le service d'accès familial doit encore être activé par G10.";if(k.includes("failed-precondition"))return "Lien expiré ou déjà utilisé. Demande un nouveau lien à G10.";if(k.includes("permission-denied"))return "Ce compte n'a pas accès à un dossier familial actif. Contacte G10.";return String(e?.message||"Erreur de connexion")}
+function textNode(cls,txt){const n=document.createElement("div");n.className=cls;n.textContent=txt;return n}
+function childCard(c){
+ const host=document.createElement("section");host.className="card";
+ const h=document.createElement("h3");h.textContent=c.name||"Enfant";host.append(h);
+ host.append(textNode("muted",[c.school,c.className].filter(Boolean).join(" · ")));
+ for(const [stage,label]of stages){
+  const row=document.createElement("div");row.className="step";
+  const b=document.createElement("b");b.textContent=label;row.append(b);
+  const ev=c.movements?.[stage];
+  if(!ev)row.append(textNode("muted","En attente"));
+  else{
+   const t=document.createElement("time");t.textContent=timeGab(ev.timeMs)+" — Confirmé";row.append(t);
+   if(ev.validatedBy)row.append(textNode("good","Validé par "+ev.validatedBy));
+   else row.append(textNode("muted",ev.source==="direction-manual"?"Enregistré par la Direction":"Contrôle confirmé"));
+   const scheduled=stage==="schoolArrival"?c.scheduledEntry:stage==="boardingPM"?c.scheduledExit:"";
+   if(scheduled){
+    const numeric=t=>{const m=String(t).match(/^(\d{2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):null};
+    const delta=numeric(timeGab(ev.timeMs))-numeric(scheduled);
+    if(Number.isFinite(delta))row.append(textNode("muted","Heure prévue : "+scheduled+" · "+(delta===0?"À l'heure":Math.abs(delta)+" min "+(delta>0?"de retard":"d'avance"))));
+   }
+  }
+  host.append(row);
+ }
+ return host;
+}
+async function load(){
+ if(!auth?.currentUser||busy)return;
+ busy=true;$("reload").disabled=true;$("fetchStatus").textContent="Lecture G10 V3…";
+ try{
+  const result=await getFn({day:$("day").value}),data=result.data||{};
+  const host=$("children");host.replaceChildren();
+  for(const c of data.children||[])host.append(childCard(c));
+  if(!data.children?.length)host.append(textNode("card","Aucun dossier associé."));
+  $("fetchStatus").textContent=(data.children||[]).length+" enfant(s) · suivi actualisé à "+timeGab(data.updatedAt);
+ }catch(e){$("fetchStatus").textContent=friendly(e)}
+ finally{busy=false;$("reload").disabled=false}
+}
+$("enterParent").onclick=()=>show(auth?.currentUser?"parentSpace":"activation");
+$("enterStudent").onclick=()=>message("L'Espace Étudiants sera ouvert plus tard, à partir de la seconde.");
+$("backA").onclick=$("backB").onclick=()=>{message("");show("home")};
+$("day").value=dayGab();$("today").onclick=()=>{$("day").value=dayGab();load()};
+$("day").onchange=$("reload").onclick=load;
+$("signOut").onclick=async()=>{
+ if(!confirm("Se déconnecter ? Il faudra demander un nouveau lien d'accès à G10 sur cet appareil."))return;
+ await auth.signOut();show("activation");$("inviteInfo").textContent="Demande un nouveau lien personnel à G10.";
+};
+$("activate").onclick=async()=>{
+ if(busy||!secret)return;
+ busy=true;$("activate").disabled=true;$("activateStatus").textContent="Activation en cours…";
+ try{
+  const result=await activateFn({token:secret});
+  secret="";history.replaceState(null,"",location.pathname+location.search);
+  await auth.signInWithCustomToken(result.data.customToken);
+  $("activateStatus").textContent="Accès activé.";
+ }catch(e){$("activateStatus").textContent=friendly(e)}
+ finally{busy=false;$("activate").disabled=false}
+};
+secret=new URLSearchParams(location.hash.slice(1)).get("activation")||"";
+if(secret){$("activate").classList.remove("hidden");$("inviteInfo").textContent="Lien personnel G10 reconnu. Clique sur Activer mon accès familial.";show("activation")}
+if(!window.firebase?.auth||!window.firebase?.functions){message("Services Firebase indisponibles. Vérifie Internet.");return}
+const app=firebase.apps.find(a=>a.name==="g10-family-app")||firebase.initializeApp(config,"g10-family-app");
+auth=app.auth();const fn=app.functions("europe-west1");
+activateFn=fn.httpsCallable("activateG10ParentInvitation");
+getFn=fn.httpsCallable("getG10MyTransport");
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
+ auth.onAuthStateChanged(user=>{
+  if(timer){clearInterval(timer);timer=null}
+  if(user){secret="";history.replaceState(null,"",location.pathname+location.search);show("parentSpace");load();timer=setInterval(()=>{if(!document.hidden)load()},30000)}
+  else if(!secret)show("home");
+ });
+}).catch(e=>message(friendly(e)));
+})();
+</script></body></html>
