@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G10 Apps — Essai réel d'un code SMS</title>
+<style>
+:root{--navy:#103e7e;--green:#0d8656;--line:#d6e5f1;--ink:#173653;--bg:#edf6fd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:16px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+header{background:linear-gradient(115deg,#0c3671,#116ba0 70%,#0b905e);color:#fff;padding:22px 18px 35px}
+header h1{font-size:clamp(26px,6vw,36px);margin:17px 0 8px}header small{font-weight:800}
+main{max-width:640px;margin:20px auto;padding:0 13px 35px}
+.card{background:#fff;border:1px solid var(--line);padding:22px;border-radius:16px;box-shadow:0 6px 20px #234f770c;margin:13px 0}
+h2{font-size:21px;margin-top:0}h3{font-size:17px}.muted{font-size:14px;color:#5a7186;line-height:1.55}
+label{display:block;font-size:14px;font-weight:750;margin:16px 0 7px}
+input,select{font:inherit;border:1px solid #c1d5e8;border-radius:9px;padding:11px;min-width:0;background:#fff;color:var(--ink)}
+button{font:inherit;border:0;border-radius:10px;padding:12px 15px;font-weight:750;cursor:pointer}
+button:disabled{opacity:.55;cursor:default}
+.primary{background:var(--green);color:#fff}.secondary{background:#e7eff8;color:var(--ink)}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.row select{width:155px}.row input{flex:1}
+.notice{padding:12px;border-radius:10px;background:#fff2d5;color:#6f5019;font-size:14px;line-height:1.6}
+.success{background:#e4f7eb;color:#095d3f;padding:14px;border-radius:10px;line-height:1.5}
+.hidden{display:none!important}#captcha{min-height:80px;overflow:auto}
+#status{padding:12px;background:#e5eff9;border-radius:10px;line-height:1.5;white-space:pre-line;font-size:14px}
+a{color:#1560a0}footer{font-size:12px;color:#647e94;padding:15px 0}
+</style></head><body>
+<header><small>🚌 G10 TRANSPORT SCOLAIRE</small><h1>Essai de connexion par téléphone</h1><div>Un seul code reçu par SMS, depuis notre page G10.</div></header>
+<main>
+<section class="card">
+<h2>Vérifier mon téléphone</h2>
+<p class="muted">Essai technique indépendant des dossiers des enfants. Aucun compte Direction n'est demandé et aucune donnée de Martina n'est modifiée.</p>
+<div id="entry">
+<label for="country">Pays</label>
+<div class="row">
+<select id="country" aria-label="Indicatif pays"><option value="+1">🇨🇦 Canada +1</option><option value="+241">🇬🇦 Gabon +241</option></select>
+<input id="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="604 123 4567" aria-label="Numéro de téléphone national">
+</div>
+<p class="muted" id="format">Canada : 10 chiffres. Pour le Gabon : 8 chiffres séparés par deux.</p>
+<label>Vérification anti-robot</label>
+<div id="captcha"></div>
+<p><button type="button" id="send" class="primary">Recevoir mon code par SMS</button></p>
+</div>
+<div id="enterCode" class="hidden">
+<p class="muted" id="where"></p>
+<label for="code">Code reçu dans les messages du téléphone</label>
+<input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code à 6 chiffres" style="width:100%">
+<p><button id="confirm" type="button" class="primary">Vérifier mon code</button></p>
+</div>
+<div id="done" class="hidden">
+<div class="success"><strong>✓ Téléphone vérifié par Firebase</strong><div id="verifiedPhone" style="margin-top:5px"></div><div>Cette connexion est mémorisée dans ce navigateur.</div></div>
+<p class="muted">Ce test ne donne accès à aucune fiche d'enfant et ne crée pas de compte Parent G10 opérationnel.</p>
+<p><button id="signout" type="button" class="secondary">Fermer la session de test</button></p>
+</div>
+<p id="status" role="status">Prêt. Le SMS réel exige que l'authentification par téléphone soit autorisée dans Firebase et que le projet dispose du forfait nécessaire.</p>
+</section>
+<p class="notice"><strong>À savoir :</strong> aucun paiement Twilio n'est nécessaire pour cette page. Cependant Firebase facture l'envoi de SMS aux vrais numéros sur le forfait Blaze. Si le projet n'est pas configuré, l'écran indiquera l'erreur plutôt que de faire semblant d'envoyer un code.</p>
+<p class="muted">Seuls Firebase Authentication, la vérification anti-robot et le numéro de téléphone sont utilisés dans ce test. Il n'y a aucun accès à <code>subs</code>, aux mouvements V3 ou aux comptes des autres utilisateurs.</p>
+<footer>G10 — Test isolé d'authentification SMS. Il ne s'agit pas de WhatsApp et ce lien ne doit pas être diffusé aux parents.</footer>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script>
+(()=>{
+"use strict";
+const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);
+let app,auth,captcha,confirmation,busy=false;
+function setStatus(message){$("status").textContent=message}
+function human(e){
+ const k=String(e?.code||"");
+ if(k.includes("operation-not-allowed"))return "Firebase n'autorise pas encore la connexion par téléphone. Active « Phone » dans Firebase Authentication.";
+ if(k.includes("unauthorized-domain"))return "Le domaine taclargabon.github.io doit être ajouté dans Firebase Authentication → Settings → Authorized domains.";
+ if(k.includes("billing-not-enabled")||k.includes("payment-required"))return "L'envoi réel des SMS nécessite d'activer la facturation Firebase (Blaze).";
+ if(k.includes("invalid-app-credential")||k.includes("captcha-check-failed"))return "Vérification anti-robot refusée. Vérifie le domaine autorisé et recommence le CAPTCHA.";
+ if(k.includes("invalid-phone-number"))return "Numéro incorrect. Vérifie l'indicatif et le nombre de chiffres.";
+ if(k.includes("invalid-verification-code"))return "Le code saisi n'est pas le bon.";
+ if(k.includes("code-expired")||k.includes("session-expired"))return "Code expiré. Recharge la page pour demander un nouveau SMS.";
+ if(k.includes("quota-exceeded")||k.includes("too-many-requests"))return "Trop de demandes de code. Arrête les essais pour le moment.";
+ if(k.includes("unsupported-country")||k.includes("sms-region"))return "La région de destination n'est pas encore autorisée dans la politique SMS Firebase.";
+ return "Firebase n'a pas confirmé cette opération : "+String(e?.message||k||"Erreur inconnue");
+}
+function digits(){return $("phone").value.replace(/\D/g,"")}
+function formatInput(){
+ const ds=digits().slice(0,$("country").value==="+241"?8:10),sizes=$("country").value==="+241"?[2,2,2,2]:[3,3,4];
+ let i=0;const groups=[];
+ for(const n of sizes){if(i>=ds.length)break;groups.push(ds.slice(i,i+n));i+=n}
+ $("phone").value=groups.join(" ");
+}
+$("country").onchange=()=>{
+ $("phone").value="";
+ $("phone").placeholder=$("country").value==="+241"?"77 04 38 39":"604 123 4567";
+ $("format").textContent=$("country").value==="+241"?"Gabon : 8 chiffres regroupés par deux.":"Canada : 10 chiffres.";
+};
+$("phone").oninput=formatInput;
+function number(){
+ const code=$("country").value,ds=digits();
+ if(ds.length!==(code==="+241"?8:10))throw Error("Numéro incomplet. Vérifie les chiffres.");
+ return code+ds;
+}
+function switchScreen(current){
+ $("entry").classList.toggle("hidden",current!=="entry");
+ $("enterCode").classList.toggle("hidden",current!=="code");
+ $("done").classList.toggle("hidden",current!=="done");
+}
+$("send").onclick=async()=>{
+ if(busy)return;
+ let phone;try{phone=number()}catch(e){setStatus(e.message);return}
+ if(!confirm("Demander un SMS de vérification Firebase au "+phone+" ? Un coût par SMS peut s'appliquer au projet G10."))return;
+ busy=true;$("send").disabled=true;
+ try{
+  setStatus("Vérification du CAPTCHA et demande du SMS…");
+  captcha=captcha||new firebase.auth.RecaptchaVerifier("captcha",{size:"normal"},app);
+  confirmation=await auth.signInWithPhoneNumber(phone,captcha);
+  $("where").textContent="Le SMS a été demandé pour le numéro se terminant par "+phone.slice(-4)+".";
+  switchScreen("code");
+  setStatus("Firebase a accepté la demande de SMS. Entre le code reçu.");
+ }catch(e){
+  setStatus(human(e));
+  if(captcha){try{captcha.clear()}catch(_){ }captcha=null}
+ }finally{busy=false;$("send").disabled=false}
+};
+$("confirm").onclick=async()=>{
+ if(busy||!confirmation)return;
+ const code=$("code").value.replace(/\D/g,"");
+ if(!/^\d{6}$/.test(code)){setStatus("Entre les six chiffres reçus dans ton SMS.");return}
+ busy=true;$("confirm").disabled=true;
+ try{
+  const result=await confirmation.confirm(code);
+  if(!result.user||!result.user.phoneNumber)throw Error("Numéro non confirmé par Firebase.");
+  setStatus("Succès : le code a été vérifié par Firebase. Tu peux fermer puis rouvrir cette page.");
+ }catch(e){setStatus(human(e))}
+ finally{busy=false;$("confirm").disabled=false}
+};
+$("signout").onclick=async()=>{
+ if(!confirm("Fermer cette session de vérification ?"))return;
+ await auth.signOut();confirmation=null;captcha=null;
+ switchScreen("entry");setStatus("Session de test fermée.");
+};
+if(!window.firebase?.auth){setStatus("Impossible de charger Firebase Authentication. Vérifie Internet.");return}
+app=firebase.apps.find(a=>a.name==="g10-sms-pilot")||firebase.initializeApp(config,"g10-sms-pilot");
+auth=app.auth();auth.languageCode="fr";
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
+ auth.onAuthStateChanged(user=>{
+  if(user?.phoneNumber){$("verifiedPhone").textContent="Numéro connecté : "+user.phoneNumber.slice(0,4)+"••••"+user.phoneNumber.slice(-4);switchScreen("done");setStatus("Téléphone déjà vérifié sur cet appareil. Aucun nouveau SMS demandé.");}
+  else switchScreen("entry");
+ });
+}).catch(e=>setStatus(human(e)));
+})();
+</script></body></html>
