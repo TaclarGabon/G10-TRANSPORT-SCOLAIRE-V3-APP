@@ -1469,7 +1469,8 @@ bindFields=function(after){
    if(field==='discountPct'){updated.paymentV147=updated.paymentV147||{};updated.paymentV147.discountPct=parseInt(el.value,10)||0;}
    else updated[field]=el.type==='number'?Number(el.value):el.value;
    if(field==='plan'&&el.value!=='Partiel')updated.partialService='';
-   try{await saveRecord('subs',updated,before);}
+   const changedFields=field==='plan'&&updated.partialService!==before.partialService?['plan','partialService']:[field];
+   try{await saveRecord('subs',updated,before,changedFields);}
    catch(e){el.value=field==='discountPct'?(before.paymentV147?.discountPct||0)+' %':before[field]??'';}
   };
  });
