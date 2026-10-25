@@ -9,7 +9,7 @@ footer{font-size:12px;color:#647b8e;padding:14px 0}
 </style></head><body><header><strong>🚌 G10 TRANSPORT SCOLAIRE</strong><h1>Test de connexion — sans SMS</h1><p>Mode fictif Firebase • zéro message envoyé</p></header>
 <main><div class="note"><strong>Mode d'essai uniquement.</strong> Utilise un numéro fictif enregistré au préalable dans Firebase Authentication → Téléphone → Numéros de téléphone pour les tests. Le code ne sera envoyé ni par WhatsApp ni par SMS : c'est celui défini dans Firebase.</div>
 <section class="card" id="form"><h2>Première connexion</h2>
-<p class="muted">Ne saisis pas ton véritable numéro. Utilise le numéro fictif et le code à six chiffres que tu viens d'enregistrer dans Firebase.</p>
+<p class="muted">Ne saisis pas ton véritable numéro. Utilise le numéro fictif et le code à six chiffres que tu viens d'enregistrer dans Firebase.</p><p class="note"><strong>Avant de cliquer :</strong> dans <a href="https://console.firebase.google.com/project/g10-transport-scolaire-v2/authentication/providers" target="_blank" rel="noopener">Firebase → Authentication → Méthode de connexion → Téléphone</a>, ouvre « Numéros de téléphone pour les tests » et vérifie que le numéro fictif est bien dans la liste avec son code de 6 chiffres. Activer le fournisseur Téléphone ne suffit pas pour ce mode d'essai.</p>
 <label for="phone">Numéro fictif (+1…)</label><input id="phone" type="tel" autocomplete="off" inputmode="tel" placeholder="+1 650 555 0147">
 <p><button id="start" type="button">Commencer la vérification</button></p>
 <div id="recaptcha" style="height:0;overflow:hidden"></div>
@@ -26,7 +26,7 @@ footer{font-size:12px;color:#647b8e;padding:14px 0}
 const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);let auth,app,verifier,confirmation,busy=false;
 function status(t){$("status").textContent=t}
-function errorMessage(e){const k=String(e?.code||"");if(k.includes("invalid-phone-number"))return"Le numéro fictif doit être complet, avec l'indicatif +1.";if(k.includes("invalid-verification-code"))return"Code incorrect : utilise exactement les six chiffres enregistrés dans Firebase.";if(k.includes("operation-not-allowed"))return"Le fournisseur Téléphone n'est pas actif.";if(k.includes("session-expired"))return"Test expiré. Recharge et recommence une seule fois.";if(k.includes("captcha"))return"Vérification du test refusée : recharge la page et réessaie avec le numéro fictif déclaré dans Firebase.";return "Firebase : "+String(e?.message||k||"erreur non précisée")}
+function errorMessage(e){const k=String(e?.code||"");if(k.includes("invalid-phone-number"))return"Le numéro fictif doit être complet, avec l'indicatif +1.";if(k.includes("invalid-verification-code"))return"Code incorrect : utilise exactement les six chiffres enregistrés dans Firebase.";if(k.includes("operation-not-allowed"))return"Firebase refuse cette opération (auth/operation-not-allowed). La méthode Téléphone est pourtant activée dans la console G10 : vérifie surtout que ce numéro fictif et son code ont bien été ajoutés dans « Numéros de téléphone pour les tests ». Si c’est déjà le cas, communique le code technique ci-dessous.";if(k.includes("session-expired"))return"Test expiré. Recharge et recommence une seule fois.";if(k.includes("captcha"))return"Vérification du test refusée : recharge la page et réessaie avec le numéro fictif déclaré dans Firebase.";return "Erreur Firebase "+(k||"sans code")+" : "+String(e?.message||"erreur non précisée")}
 function showSigned(user){$("form").classList.toggle("hidden",!!user);$("signed").classList.toggle("hidden",!user);if(user){const n=String(user.phoneNumber||"");$("who").textContent=n?"Numéro fictif connecté : "+n.slice(0,3)+"••••"+n.slice(-4):"Compte de test connecté";status("Session enregistrée. Recharge la page pour vérifier qu'elle persiste.");}}
 $("start").onclick=async()=>{if(busy)return;
  const number=$("phone").value.replace(/[\s()-]/g,"");
@@ -39,7 +39,7 @@ $("start").onclick=async()=>{if(busy)return;
   confirmation=await auth.signInWithPhoneNumber(number,verifier);
   $("codeSection").classList.remove("hidden");
   status("Numéro fictif reconnu. Entre le code à six chiffres configuré dans Firebase. Aucun SMS envoyé.");
- }catch(e){status(errorMessage(e));if(verifier){try{verifier.clear()}catch(_){}verifier=null}}
+ }catch(e){status(errorMessage(e)+"\nCode technique : "+String(e?.code||"non fourni"));if(verifier){try{verifier.clear()}catch(_){}verifier=null}}
  finally{busy=false;$("start").disabled=false}
 };
 $("check").onclick=async()=>{if(busy||!confirmation)return;const c=$("code").value.trim();if(!/^\d{6}$/.test(c)){status("Entre les six chiffres de test.");return}
