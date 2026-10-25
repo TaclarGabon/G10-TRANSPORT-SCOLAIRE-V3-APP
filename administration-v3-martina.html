@@ -919,7 +919,49 @@ function mergeSubscriptionEdit(current,baseline,record,changedFields){
  }
  return {conflicts:[],record:merged};
 }
-async function saveRecord(module,record,before=null,changedFields=null){
+async function librevilleMonthKey(){
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+ return parts.find(x=>x.type==='year')?.value+'-'+parts.find(x=>x.type==='month')?.value;
+}
+function deriveBoardingAccess(student,transactionRows=[],month=librevilleMonthKey()){
+ const state=String(student.subscriptionStatus||'').trim().toLowerCase();
+ if(/^(en attente de paiement|à confirmer|a confirmer)$/.test(state))return 'pending';
+ const price=moneyNum(student.price), discountRaw=student.discountPct||student.paymentV147?.discountPct||0;
+ const discount=Number(String(discountRaw).replace(/[^0-9.]/g,''))||0;
+ const due=price*(1-Math.min(100,Math.max(0,discount))/100);
+ if(!(due>0))return 'pending';
+ let received=0;
+ const legacyMonth=String(student.paymentMonth||student.paymentV147?.monthKey||'');
+ const legacyStatus=String(student.payment||'').toLowerCase();
+ if(legacyMonth===month&&!/non.pay|impay|attente|vérif|verif|annul/.test(legacyStatus))received+=moneyNum(student.amountReceived);
+ for(const row of transactionRows){
+  if(String(row.studentId)!==String(student.id)||String(row.month||'')!==month)continue;
+  if(/attente|annul|refus|non.pay|impay/i.test(String(row.status||'')))continue;
+  received+=moneyNum(row.amount);
+ }
+ return received>=due?'paid':'unpaid';
+}
+async function refreshScanRosterAccess(){
+ const db=initFirebase().database(),user=await ensureRole();
+ const accessRole=(await db.ref(ROOT+'/roles/'+user.uid).once('value')).val();
+ if(!accessRole?.enabled||!['direction','admin'].includes(accessRole.role))throw Error('Seule la Direction peut actualiser les autorisations de montée.');
+ const next={},seen=new Set(),month=librevilleMonthKey();
+ for(const student of subs){
+  if(!student||student.v3Archived===true)continue;
+  const id=String(student.id||'').trim(),qrRef=String(student.qrRef||'').trim().toUpperCase(),busId=String(student.busId||'').trim(),name=String(student.name||'').trim();
+  if(!id||!qrRef||!busId||!name)continue;
+  if(seen.has(qrRef))throw Error('Référence QR en doublon : '+qrRef+'. Aucun répertoire modifié.');
+  seen.add(qrRef);
+  const paymentAccess=deriveBoardingAccess(student,payments,month);
+  if(paymentAccess==='pending')continue;
+  next[id]={id,name,busId,qrRef,paymentAccess,paymentMonth:month};
+ }
+ await db.ref(DATA+'/scanRoster').set(next);
+ const verify=(await db.ref(DATA+'/scanRoster').once('value')).val()||{};
+ if(Object.keys(verify).length!==Object.keys(next).length)throw Error('La relecture du répertoire QR ne correspond pas. Vérifie Firebase.');
+ return Object.keys(next).length;
+}
+function saveRecord(module,record,before=null,changedFields=null){
  if(!['subs','payments','expenses','drivers','staff','circuits','movements'].includes(module))throw Error('Module V3 non autorisé.');
  if(saveBusy)throw Error('Une sauvegarde est déjà en cours.');
  if(!validId(String(record.id)))throw Error('Identifiant invalide.');
@@ -953,8 +995,9 @@ async function saveRecord(module,record,before=null,changedFields=null){
   }
   await ref.set(payload);
   // La sauvegarde est confirmée par Firebase. Ne pas répéter si la relecture échoue.
-  try{await reloadV3();message('Enregistrement confirmé dans Firebase V3 : '+module+' / '+record.id+'. V2 inchangée.');}
-  catch(err){message('ÉCRITURE V3 CONFIRMÉE, mais relecture impossible : '+formatError(err)+'. Ne répète pas l’opération.');}
+  let loaded=false;try{await reloadV3();loaded=true;}catch(err){message('ÉCRITURE V3 CONFIRMÉE, mais relecture impossible : '+formatError(err)+'. Ne répète pas l’opération.');}
+  if(loaded&&['subs','payments'].includes(module)){try{await refreshScanRosterAccess();message('Enregistrement confirmé : '+module+' / '+record.id+'. Autorisations QR actualisées.');}catch(err){message('ÉCRITURE V3 CONFIRMÉE, état de montée non actualisé : '+formatError(err)+'. La Direction doit actualiser le répertoire QR.','error');}}
+  else if(loaded)message('Enregistrement confirmé dans Firebase V3 : '+module+' / '+record.id+'. V2 inchangée.');
  }catch(err){message('Enregistrement REFUSÉ : '+formatError(err)+'. Aucune écriture V2.');throw err;}
  finally{saveBusy=false;}
 }
