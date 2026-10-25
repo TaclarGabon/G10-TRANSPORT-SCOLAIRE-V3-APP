@@ -534,7 +534,6 @@ function showAvis(){
 }
 document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-tab]');if(!b)return;document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b)});if(document.getElementById('paymentRows'))capturePaymentDemo();if(b.dataset.tab==='abonnes')document.getElementById('panel').innerHTML=abonnesMarkup;else if(b.dataset.tab==='abonnement')showAbonnement();else if(b.dataset.tab==='paiements')showPaiements();else if(b.dataset.tab==='circuit')drawCircuit();else if(b.dataset.tab==='rapports')showRapports();else if(b.dataset.tab==='chauffeurs')showChauffeurs();else if(b.dataset.tab==='staff')showStaff();else if(b.dataset.tab==='depenses')showDepenses();else if(b.dataset.tab==='qr')showQrAudit();else if(b.dataset.tab==='astuce')showAstuce();else if(b.dataset.tab==='reclamations')showAvis();else document.getElementById('panel').innerHTML='<div class="card"><h2>'+b.textContent+'</h2><p>Rubrique en attente de validation. Les données de Martina ne sont pas modifiées.</p></div>'});
 </script><script type="application/json" id="v3-qr-assets">{}</script><script type="application/json" id="g10-real-snapshot">{"subs":[],"vehicleExpenses":[],"drivers":[],"staff":[]}</script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js" defer></script>
@@ -1178,27 +1177,14 @@ function v3AttachFilters(tab){
  };
  apply();
 }
-function exportSubscribersXlsx(){
- if(!window.XLSX){alert('Le module Excel n’est pas chargé. Vérifie la connexion Internet puis réessaie.');return;}
- const records=subs.filter(s=>s&&s.v3Archived!==true);
- const busLabel={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'};
- const rows=[['Élève','École','Classe','Parent / tuteur','Contact','Numéro d’urgence','Adresse / repère','Ligne / bus affecté']];
- for(const s of records)rows.push([s.name||'',s.school||'',s.className||'',s.guardian||'',s.whatsapp||s.phone2||s.phone||'',s.emergencyPhone||s.emergency||'',s.address||'',busLabel[s.busId]||s.busId||'']);
- const ws=XLSX.utils.aoa_to_sheet(rows);
- ws['!cols']=[{wch:32},{wch:28},{wch:18},{wch:30},{wch:22},{wch:22},{wch:38},{wch:26}];
- if(records.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:rows[0].length-1}})};
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Abonnés');
- const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- XLSX.writeFile(wb,'Abonnes_G10_'+date+'.xlsx');
-}
+
 renderSubs=function(){
- p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button> <button class="btn" id="exportSubsXlsx" type="button">Exporter les abonnés vers Excel</button>')+
+ p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button>')+
  v3FilterBar('abonnes')+v3AbonnesToolbar()+table(['#',v3FilterHeader('abonnes','student','Enfant'),v3FilterHeader('abonnes','school','École'),'Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère',v3FilterHeader('abonnes','bus','Ligne / bus affecté'),'Action','Nettoyer'],
  v3AbonnesVisible().map(({s,i},n)=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+(n+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
  v3AttachFilters('abonnes');
  v3AttachAbonnesToolbar();
  p.querySelector('#addSub').onclick=()=>{v3AbonnesClassFilter='';v3AbonnesSort='added';rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});}
- p.querySelector('#exportSubsXlsx').onclick=exportSubscribersXlsx;
  p.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editForm('subs',subs[+b.dataset.edit],subFields,b.closest('tr')));
  p.querySelectorAll('[data-clean]').forEach(b=>b.onclick=async()=>{
   const r=subs[+b.dataset.clean];if(!confirmTwice('les coordonnées de '+r.name+' dans V3'))return;
