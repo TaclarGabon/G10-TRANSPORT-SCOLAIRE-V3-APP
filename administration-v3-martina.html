@@ -534,7 +534,7 @@ function showAvis(){
 }
 document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-tab]');if(!b)return;document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b)});if(document.getElementById('paymentRows'))capturePaymentDemo();if(b.dataset.tab==='abonnes')document.getElementById('panel').innerHTML=abonnesMarkup;else if(b.dataset.tab==='abonnement')showAbonnement();else if(b.dataset.tab==='paiements')showPaiements();else if(b.dataset.tab==='circuit')drawCircuit();else if(b.dataset.tab==='rapports')showRapports();else if(b.dataset.tab==='chauffeurs')showChauffeurs();else if(b.dataset.tab==='staff')showStaff();else if(b.dataset.tab==='depenses')showDepenses();else if(b.dataset.tab==='qr')showQrAudit();else if(b.dataset.tab==='astuce')showAstuce();else if(b.dataset.tab==='reclamations')showAvis();else document.getElementById('panel').innerHTML='<div class="card"><h2>'+b.textContent+'</h2><p>Rubrique en attente de validation. Les données de Martina ne sont pas modifiées.</p></div>'});
 </script><script type="application/json" id="v3-qr-assets">{}</script><script type="application/json" id="g10-real-snapshot">{"subs":[],"vehicleExpenses":[],"drivers":[],"staff":[]}</script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+<script src="./vendor/xlsx-js-style.min.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js" defer></script>
@@ -1136,23 +1136,73 @@ function v3AttachFilters(tab){
  apply();
 }
 function exportSubscribersXlsx(){
+ if(!window.XLSX){alert('Le module Excel n’est pas chargé. Actualise la page puis réessaie.');return;}
  const records=subs.filter(s=>s&&s.v3Archived!==true);
  const busLabel={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'};
- const rows=[['Élève','École','Classe','Parent / tuteur','Contact','Numéro d’urgence','Adresse / repère','Ligne / bus affecté']];
- for(const s of records)rows.push([s.name||'',s.school||'',s.className||'',s.guardian||'',s.whatsapp||s.phone2||s.phone||'',s.emergencyPhone||s.emergency||'',s.address||'',busLabel[s.busId]||s.busId||'']);
  const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- if(!window.XLSX){
-  const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
-  const csv='\\ufeff'+rows.map(row=>row.map(quote).join(';')).join('\\r\\n');
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
-  link.href=url;link.download='Abonnes_G10_'+date+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
-  alert('Le module .xlsx n’est pas disponible; un fichier CSV compatible avec Excel a été téléchargé.');
-  return;
- }
+ const dateLabel=new Intl.DateTimeFormat('fr-FR',{timeZone:'Africa/Libreville',dateStyle:'long'}).format(new Date());
+ const headers=['Élève','École','Classe','Parent / tuteur','Contact','Numéro d’urgence','Adresse / repère','Ligne / bus affecté'];
+ const rows=[['G10 TRANSPORT SCOLAIRE'],['LISTE DES ABONNÉS ACTIFS • Export du '+dateLabel],[],headers];
+ for(const s of records)rows.push([s.name||'',s.school||'',s.className||'',s.guardian||'',s.whatsapp||s.phone2||s.phone||'',s.emergencyPhone||s.emergency||'',s.address||'',busLabel[s.busId]||s.busId||'']);
  const ws=XLSX.utils.aoa_to_sheet(rows);
- ws['!cols']=[{wch:32},{wch:28},{wch:18},{wch:30},{wch:22},{wch:22},{wch:38},{wch:26}];
- if(records.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:rows[0].length-1}})};
+ ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+ ws['!cols']=[{wch:32},{wch:30},{wch:20},{wch:30},{wch:22},{wch:22},{wch:42},{wch:25}];
+ ws['!rows']=[{hpt:30},{hpt:24},{hpt:9},{hpt:32}];
+ if(records.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:3,c:0},e:{r:rows.length-1,c:headers.length-1}})};
+ const navy='163F78',blue='3473C7',green='1B9B62',paleBlue='EFF4FA',paleGreen='E8F5EE',white='FFFFFF',ink='19324D',line='D6E1ED',muted='667A91',gold='F5C84C';
+ const border={bottom:{style:'thin',color:{rgb:line}}};
+ function applyCell(sheet,r,c,style){const addr=XLSX.utils.encode_cell({r,c});if(sheet[addr])sheet[addr].s=style;}
+ function paintRow(sheet,r,c1,c2,style){for(let c=c1;c<=c2;c++)applyCell(sheet,r,c,style);}
+ const titleStyle={font:{name:'Aptos Display',sz:18,bold:true,color:{rgb:white}},fill:{fgColor:{rgb:navy}},alignment:{vertical:'center'}};
+ const subtitleStyle={font:{name:'Aptos',sz:10,bold:true,color:{rgb:navy}},fill:{fgColor:{rgb:paleBlue}},alignment:{vertical:'center'}};
+ const headStyle={font:{name:'Aptos',sz:10,bold:true,color:{rgb:white}},fill:{fgColor:{rgb:blue}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border};
+ const bodyStyle={font:{name:'Aptos',sz:10,color:{rgb:ink}},alignment:{vertical:'center',wrapText:true},border};
+ const altStyle={...bodyStyle,fill:{fgColor:{rgb:paleBlue}}};
+ paintRow(ws,0,0,7,titleStyle);paintRow(ws,1,0,7,subtitleStyle);paintRow(ws,3,0,7,headStyle);
+ for(let r=4;r<rows.length;r++)paintRow(ws,r,0,7,r%2===0?bodyStyle:altStyle);
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Abonnés');
+ const countBy=(field)=>{const map=new Map();for(const s of records){const key=String(field(s)||'').trim();if(key)map.set(key,(map.get(key)||0)+1)}return [...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'fr'))};
+ const schools=countBy(s=>s.school),classes=countBy(s=>s.className);
+ const busCounts=countBy(s=>busLabel[s.busId]||s.busId||'');
+ const contactMissing=records.filter(s=>!String(s.whatsapp||s.phone2||s.phone||'').trim()).length;
+ const emergencyMissing=records.filter(s=>!String(s.emergencyPhone||s.emergency||'').trim()).length;
+ const schoolMissing=records.filter(s=>!String(s.school||'').trim()).length;
+ const classMissing=records.filter(s=>!String(s.className||'').trim()).length;
+ const busMissing=records.filter(s=>!String(s.busId||'').trim()).length;
+ const summaryRows=[];
+ const put=(r,c,values)=>{summaryRows[r]??=[];for(let i=0;i<values.length;i++)summaryRows[r][c+i]=values[i];};
+ put(0,0,['G10 TRANSPORT SCOLAIRE']);put(1,0,['ANALYSE DES ABONNÉS • '+dateLabel]);
+ put(3,0,['INDICATEURS CLÉS','VALEUR']);
+ put(4,0,['Abonnés actifs',records.length]);
+ put(5,0,['Écoles représentées',schools.length]);
+ put(6,0,['Classes représentées',classes.length]);
+ put(7,0,['Contacts parent manquants',contactMissing]);
+ put(8,0,['Numéros d’urgence manquants',emergencyMissing]);
+ put(9,0,['École / classe non renseignée',schoolMissing+classMissing]);
+ put(3,3,['RÉPARTITION PAR BUS','EFFECTIF']);
+ const busRows=[...busCounts];if(busMissing)busRows.push(['Bus non affecté',busMissing]);
+ busRows.forEach((x,i)=>put(4+i,3,x));
+ put(12,0,['QUALITÉ DES FICHES','NOMBRE']);
+ put(13,0,['Contact parent manquant',contactMissing]);
+ put(14,0,['Numéro d’urgence manquant',emergencyMissing]);
+ put(15,0,['École manquante',schoolMissing]);
+ put(16,0,['Classe manquante',classMissing]);
+ put(12,3,['RÉPARTITION PAR ÉCOLE','EFFECTIF']);schools.forEach((x,i)=>put(13+i,3,x));
+ put(12,6,['RÉPARTITION PAR CLASSE','EFFECTIF']);classes.forEach((x,i)=>put(13+i,6,x));
+ const summary=XLSX.utils.aoa_to_sheet(summaryRows);
+ summary['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+ summary['!cols']=[{wch:34},{wch:15},{wch:3},{wch:38},{wch:14},{wch:3},{wch:30},{wch:14}];
+ summary['!rows']=[{hpt:30},{hpt:24}];
+ const reportTitle={font:{name:'Aptos Display',sz:18,bold:true,color:{rgb:white}},fill:{fgColor:{rgb:navy}},alignment:{vertical:'center'}};
+ const reportSubtitle={font:{name:'Aptos',sz:10,bold:true,color:{rgb:navy}},fill:{fgColor:{rgb:paleBlue}},alignment:{vertical:'center'}};
+ const sectionStyle={font:{name:'Aptos',sz:10,bold:true,color:{rgb:white}},fill:{fgColor:{rgb:green}},alignment:{vertical:'center',wrapText:true},border};
+ const reportBody={font:{name:'Aptos',sz:10,color:{rgb:ink}},alignment:{vertical:'center',wrapText:true},border};
+ const reportAlt={...reportBody,fill:{fgColor:{rgb:paleGreen}}};
+ paintRow(summary,0,0,7,reportTitle);paintRow(summary,1,0,7,reportSubtitle);
+ for(const r of [3,12]){paintRow(summary,r,0,1,sectionStyle);paintRow(summary,r,3,4,sectionStyle);paintRow(summary,r,6,7,sectionStyle);}
+ for(let r=4;r<summaryRows.length;r++)for(const [c1,c2] of [[0,1],[3,4],[6,7]])paintRow(summary,r,c1,c2,r%2===0?reportBody:reportAlt);
+ XLSX.utils.book_append_sheet(wb,summary,'Analyse');
+ wb.Props={Title:'G10 — Liste et analyse des abonnés',Subject:'Effectifs par bus, école et classe',Author:'G10 Transport Scolaire'};
  XLSX.writeFile(wb,'Abonnes_G10_'+date+'.xlsx');
 }
 
