@@ -133,8 +133,19 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
 .v3-print-sheet{background:#fff;border-radius:12px;padding:22px;width:min(800px,100%);color:#17324f}
 .v3-print-actions{display:flex;gap:10px;justify-content:flex-end;margin-bottom:16px}
 .v3-print-actions button{border:0;border-radius:8px;padding:10px 14px;font-weight:800;background:#176fd1;color:#fff;cursor:pointer}
-.v3-receipt{border:2px solid #174c85;border-radius:12px;padding:25px;line-height:1.7}
-.v3-receipt h2{margin:0 0 12px;color:#123d78}.v3-receipt strong{font-size:17px}
+.g10-receipt{position:relative;overflow:hidden;max-width:760px;margin:14px auto;background:linear-gradient(155deg,#fff 0%,#fff 72%,#f4f6f8 100%);padding:24px 7.5% 20px;color:#112f63;font:13px/1.35 Arial,sans-serif;box-shadow:0 3px 18px #183f6612}
+.g10-receipt-ornament{position:absolute;inset:0 0 auto;height:76px;background:linear-gradient(168deg,#e6edf8 0 17%,transparent 17.3%),linear-gradient(174deg,transparent 0 23%,#f3f6fb 23.3% 27%,transparent 27.4%);z-index:0}
+.g10-receipt-brand,.g10-receipt-divider,.g10-receipt-data,.g10-receipt-total,.g10-receipt-method,.g10-receipt-footer,.g10-thanks,.g10-receipt-footnote,.g10-receipt-bottom{position:relative;z-index:1}
+.g10-receipt-brand{text-align:center;padding:3px 0 0}.g10-logo{display:block;width:170px;height:auto;margin:0 auto 8px}
+.g10-receipt-brand h1{font-size:31px;line-height:1.1;letter-spacing:.01em;margin:8px 0 4px;font-weight:900;color:#082c68}
+.g10-receipt-brand h2{font-size:16px;margin:0;color:#155a9f;font-weight:800}
+.g10-receipt-divider{display:flex;align-items:center;gap:8px;margin:15px 0 13px}.g10-receipt-divider span{height:3px;flex:1;background:linear-gradient(90deg,#36a65b,#55bd67)}.g10-receipt-divider span:last-child{background:linear-gradient(90deg,#1254a0,#17477d)}.g10-receipt-divider i{font-style:normal;color:#e7bd28;font-size:12px}
+.g10-receipt-data{margin:0}.g10-receipt-data div{display:grid;grid-template-columns:minmax(175px,1fr) 1.1fr;gap:12px;padding:7px 2px;border-bottom:1px solid #dce1e6;align-items:center}.g10-receipt-data dt{font-weight:800}.g10-receipt-data dd{margin:0;color:#15599b;font-weight:700}
+.g10-receipt-total{display:flex;align-items:center;gap:10px;margin:13px 0 10px;padding:11px 13px;border:2px solid #91bd9e;border-radius:8px;background:#f9fcf9;color:#398552}.g10-receipt-total b{font-size:16px}.g10-receipt-total strong{margin-left:auto;font-size:18px;white-space:nowrap}.g10-wallet{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#67a873;color:white;font-size:20px}
+.g10-receipt-method{display:flex;gap:20px;padding:0 3px 9px;border-bottom:1px solid #dce1e6}.g10-receipt-footer{display:flex;justify-content:space-between;align-items:flex-end;min-height:112px;padding-top:8px}.g10-signature{font-size:12px}.g10-signature div{width:125px;height:64px}.g10-bus{width:210px;max-width:38%;height:auto}
+.g10-thanks{text-align:center;font-size:15px;font-weight:800;margin:1px 0 8px}.g10-receipt-footnote{text-align:center;color:#647487;font-size:9px;margin:0 0 5px}.g10-receipt-bottom{display:flex;height:7px;gap:3px;margin-top:9px}.g10-receipt-bottom span{background:#175fa5;flex:3}.g10-receipt-bottom i{background:#348c4c;flex:1;transform:skewX(-24deg)}
+@media(max-width:560px){.g10-receipt{padding:20px 5% 16px}.g10-receipt-data div{grid-template-columns:1fr;gap:3px}.g10-receipt-brand h1{font-size:25px}.g10-receipt-brand h2{font-size:14px}.g10-receipt-total strong{font-size:16px}.g10-bus{width:145px}}
+
 .v3-qr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .v3-print-badge{border:1px dashed #cba528;border-radius:9px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:265px;overflow:hidden}
 .v3-print-badge b{font-size:12px}.v3-print-badge small{font-size:9px}.v3-print-badge .qr-cell{margin:6px auto}
@@ -149,7 +160,7 @@ body{color:#17324f;background:#eef4fb;font-family:-apple-system,BlinkMacSystemFo
  .v3-qr-grid{grid-template-columns:repeat(3,54mm);gap:4mm;justify-content:center}
  .v3-print-badge{width:54mm;height:85mm;min-height:85mm;break-inside:avoid;page-break-inside:avoid}
  .v3-print-badge .qr-cell img,.v3-print-badge .qr-cell canvas{width:39mm!important;height:39mm!important}
- .v3-receipt{margin:10mm}
+ .g10-receipt{margin:8mm auto;box-shadow:none;break-inside:avoid;page-break-inside:avoid;width:100%;max-width:none;padding:10mm 11mm 8mm;font-size:10pt}.g10-receipt-brand h1{font-size:24pt}.g10-receipt-brand h2{font-size:12pt}.g10-receipt-data div{padding:5px 2px}.g10-receipt-total{margin:8px 0;padding:8px 10px}.g10-receipt-footer{min-height:90px}.g10-receipt-bottom{margin-top:4px}
  .v3-print-sheet>h2,.v3-print-sheet>p{display:none!important}
 }
 [hidden]{display:none!important}
@@ -1170,13 +1181,39 @@ function printPaymentReceipt(record,legacy){
  const s=legacy?record:subs.find(x=>String(x.id)===String(record.studentId));
  const amount=legacy?moneyNum(record.amountReceived):moneyNum(record.amount);
  if(!amount)return alert('Aucun montant positif disponible pour ce justificatif.');
- const date=legacy?record.paymentDate:record.date;
- const month=legacy?(record.paymentMonth||record.paymentV147?.monthKey):record.month;
+ const rawDate=legacy?record.paymentDate:record.date;
+ const rawMonth=legacy?(record.paymentMonth||record.paymentV147?.monthKey):record.month;
  const method=legacy?(record.paymentMethod||record.paymentV147?.paymentMethod):record.method;
- const title=legacy?'JUSTIFICATIF — FICHE IMPORTÉE':'REÇU DE PAIEMENT G10 V3';
- const warning=legacy?'<p><b>Document reconstitué depuis la fiche importée.</b> À vérifier avec les pièces de paiement originales avant remise comme reçu officiel. Aucune transaction bancaire indépendante n’a été reconstituée.</p>':'<p>Reçu établi à partir du paiement enregistré dans Firebase V3.</p>';
+ const receiptRef=legacy?(record.paymentV147?.receiptRef||record.paymentV147?.reference||record.id):(record.id||'—');
+ const date=(()=>{const d=new Date(String(rawDate||'')+'T12:00:00');return Number.isNaN(d.getTime())?String(rawDate||'—'):new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d);})();
+ const month=(()=>{const m=String(rawMonth||'');const d=/^\\d{4}-\\d{2}$/.test(m)?new Date(m+'-15T12:00:00'):null;return d&&!Number.isNaN(d.getTime())?new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(d):m||'—';})();
+ const title=legacy?'JUSTIFICATIF DE PAIEMENT':'REÇU DE PAIEMENT';
+ const warning=legacy?'<p class="g10-receipt-footnote">Justificatif établi à partir des informations historiques importées.</p>':'<p class="g10-receipt-footnote">Paiement enregistré dans Firebase V3.</p>';
  const overlay=document.createElement('div');overlay.className='v3-print-overlay';
- overlay.innerHTML='<div class="v3-print-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer / PDF</button><button type="button" data-close>Fermer</button></div><div class="v3-receipt"><h2>G10 TRANSPORT SCOLAIRE</h2><h3>'+title+'</h3><p><b>Élève :</b> '+esc(s?.name||'—')+'</p><p><b>Date :</b> '+esc(date||'—')+' &nbsp; <b>Mois :</b> '+esc(month||'—')+'</p><p><b>Mode :</b> '+esc(method||'—')+'</p><p><b>Montant :</b> <strong>'+cash(amount)+'</strong></p>'+(legacy?'':'<p><b>Référence :</b> '+esc(record.id||'—')+'</p>')+warning+'</div></div>';
+ overlay.innerHTML=`<div class="v3-print-sheet g10-receipt-sheet"><div class="v3-print-actions"><button type="button" data-print>Imprimer / PDF</button><button type="button" data-close>Fermer</button></div>
+ <article class="g10-receipt">
+  <div class="g10-receipt-ornament"></div>
+  <header class="g10-receipt-brand">
+   <svg class="g10-logo" viewBox="0 0 300 92" role="img" aria-label="G10 Transports"><text x="36" y="57" font-size="61" font-weight="900" font-family="Arial,sans-serif" fill="#29934b">G</text><text x="96" y="57" font-size="61" font-weight="900" font-family="Arial,sans-serif" fill="#1463a8">10</text><path d="M46 60 C92 46 117 31 149 10 C136 35 101 59 59 70Z" fill="#f2c320"/><path d="M61 69 C94 60 119 47 145 27 C132 50 105 68 69 77Z" fill="#e8b817"/><text x="77" y="88" font-size="15" letter-spacing="4" font-weight="800" font-family="Arial,sans-serif" fill="#30934e">TRANSPORTS</text></svg>
+   <h1>REÇU DE PAIEMENT</h1><h2>Abonnement mensuel – Transport scolaire</h2>
+  </header>
+  <div class="g10-receipt-divider"><span></span><i>◆</i><span></span></div>
+  <dl class="g10-receipt-data">
+   <div><dt>Référence du reçu :</dt><dd>${esc(receiptRef)}</dd></div>
+   <div><dt>Date de paiement :</dt><dd>${esc(date)}</dd></div>
+   <div><dt>Nom de l’élève :</dt><dd>${esc(s?.name||'—')}</dd></div>
+   <div><dt>Nom du parent ou tuteur :</dt><dd>${esc(s?.guardian||record.guardian||'—')}</dd></div>
+   <div><dt>Période couverte :</dt><dd>${esc(month)}</dd></div>
+  </dl>
+  <div class="g10-receipt-total"><span class="g10-wallet" aria-hidden="true">▣</span><b>Montant payé :</b><strong>${cash(amount)}</strong></div>
+  <div class="g10-receipt-method"><b>Mode de paiement :</b><span>${esc(method||'—')}</span></div>
+  <footer class="g10-receipt-footer">
+   <div class="g10-signature"><b>Signature / cachet :</b><div></div></div>
+   <svg class="g10-bus" viewBox="0 0 240 120" aria-hidden="true"><g fill="none" stroke="#8ba9ca" stroke-width="3" opacity=".42"><path d="M22 83V35q0-13 15-13h139q18 0 18 17v44H22Z"/><path d="M28 52h158M48 25v26m42-26v26m42-26v26m-89 3v23m52-23v23m52-23v23M20 84h177"/><circle cx="60" cy="88" r="13" fill="#fff"/><circle cx="158" cy="88" r="13" fill="#fff"/><path d="M14 111h208"/></g></svg>
+  </footer>
+  <p class="g10-thanks">Merci pour votre règlement.</p>${warning}
+  <div class="g10-receipt-bottom"><span></span><i></i></div>
+ </article></div>`;
  overlay.querySelector('[data-close]').onclick=()=>overlay.remove();overlay.querySelector('[data-print]').onclick=()=>window.print();overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.appendChild(overlay);
 }
 // Abonnement : écriture V3 explicite au changement, avec restauration visuelle en cas d’échec.
