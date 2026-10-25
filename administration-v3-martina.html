@@ -925,7 +925,7 @@ function librevilleMonthKey(){
 }
 function deriveBoardingAccess(student,transactionRows=[],month=librevilleMonthKey()){
  const state=String(student.subscriptionStatus||'').trim().toLowerCase();
- if(/^(en attente de paiement|à confirmer|a confirmer)$/.test(state))return 'pending';
+ if(/^(en attente de paiement|en attente)$/.test(state))return 'pending';
  const price=moneyNum(student.price), discountRaw=student.discountPct||student.paymentV147?.discountPct||0;
  const discount=Number(String(discountRaw).replace(/[^0-9.]/g,''))||0;
  const due=price*(1-Math.min(100,Math.max(0,discount))/100);
