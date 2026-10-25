@@ -1136,18 +1136,26 @@ function v3AttachFilters(tab){
  apply();
 }
 function exportSubscribersXlsx(){
- if(!window.XLSX){alert('Le module Excel n’est pas chargé. Vérifie la connexion Internet puis réessaie.');return;}
  const records=subs.filter(s=>s&&s.v3Archived!==true);
  const busLabel={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'};
  const rows=[['Élève','École','Classe','Parent / tuteur','Contact','Numéro d’urgence','Adresse / repère','Ligne / bus affecté']];
  for(const s of records)rows.push([s.name||'',s.school||'',s.className||'',s.guardian||'',s.whatsapp||s.phone2||s.phone||'',s.emergencyPhone||s.emergency||'',s.address||'',busLabel[s.busId]||s.busId||'']);
+ const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ if(!window.XLSX){
+  const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
+  const csv='\\ufeff'+rows.map(row=>row.map(quote).join(';')).join('\\r\\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
+  link.href=url;link.download='Abonnes_G10_'+date+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+  alert('Le module .xlsx n’est pas disponible; un fichier CSV compatible avec Excel a été téléchargé.');
+  return;
+ }
  const ws=XLSX.utils.aoa_to_sheet(rows);
  ws['!cols']=[{wch:32},{wch:28},{wch:18},{wch:30},{wch:22},{wch:22},{wch:38},{wch:26}];
  if(records.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:rows[0].length-1}})};
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Abonnés');
- const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  XLSX.writeFile(wb,'Abonnes_G10_'+date+'.xlsx');
 }
+
 renderSubs=function(){
  p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button> <button class="btn" id="exportSubsXlsx" type="button">Exporter les abonnés vers Excel</button>')+
  v3FilterBar('abonnes')+v3AbonnesToolbar()+table(['#',v3FilterHeader('abonnes','student','Enfant'),v3FilterHeader('abonnes','school','École'),'Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère',v3FilterHeader('abonnes','bus','Ligne / bus affecté'),'Action','Nettoyer'],
