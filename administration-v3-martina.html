@@ -919,7 +919,7 @@ function mergeSubscriptionEdit(current,baseline,record,changedFields){
  }
  return {conflicts:[],record:merged};
 }
-async function librevilleMonthKey(){
+function librevilleMonthKey(){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Libreville',year:'numeric',month:'2-digit'}).formatToParts(new Date());
  return parts.find(x=>x.type==='year')?.value+'-'+parts.find(x=>x.type==='month')?.value;
 }
@@ -961,7 +961,7 @@ async function refreshScanRosterAccess(){
  if(Object.keys(verify).length!==Object.keys(next).length)throw Error('La relecture du répertoire QR ne correspond pas. Vérifie Firebase.');
  return Object.keys(next).length;
 }
-function saveRecord(module,record,before=null,changedFields=null){
+async function saveRecord(module,record,before=null,changedFields=null){
  if(!['subs','payments','expenses','drivers','staff','circuits','movements'].includes(module))throw Error('Module V3 non autorisé.');
  if(saveBusy)throw Error('Une sauvegarde est déjà en cours.');
  if(!validId(String(record.id)))throw Error('Identifiant invalide.');
