@@ -45,7 +45,7 @@ h2{margin:0 0 12px;font-size:21px}h3{margin:0 0 10px;font-size:18px}p{line-heigh
 const cfg={apiKey:'AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o',authDomain:'g10-transport-scolaire-v2.firebaseapp.com',databaseURL:'https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app',projectId:'g10-transport-scolaire-v2',appId:'1:836907463780:web:585e2b4f075c8ff172db71'};
 const ROOT='g10TransportScolaireV3',DATA=ROOT+'/data';
 const $=id=>document.getElementById(id), names={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'},stages={boardingAM:'Montée du matin',schoolArrival:'Arrivée à l’école',boardingPM:'Récupération après les cours',homeDrop:'Dépose au domicile / point relais'};
-let fb,db,role='',roster={},scanner=null,scanning=false,pending=null,busy=false,loginLock=false;
+let fb,db,role='',roster={},scanner=null,scanning=false,pending=null,busy=false,loginLock=false,scanLookupBusy=false;
 const firebaseReady=()=>{if(!window.firebase?.database||!window.firebase?.auth)throw Error('Bibliothèques Firebase indisponibles. Vérifie Internet.');if(!firebase.apps.length)firebase.initializeApp(cfg);fb=firebase;db=fb.database();};
 function notice(message,kind=''){const el=$('notice');el.textContent=message;el.className='status'+(kind?' '+kind:'');el.hidden=false;}
 function errorText(e){return String(e?.message||e?.code||e).replace(/^Firebase: /,'');}
@@ -90,9 +90,31 @@ $('syncRoster').onclick=async()=>{if(role!=='direction')return;if(!['direction',
  await db.ref(DATA+'/scanRoster').set(next);const verify=(await db.ref(DATA+'/scanRoster').once('value')).val()||{};if(Object.keys(verify).length!==n)throw Error('Écriture effectuée, mais le nombre relu diffère : vérifie avant de recommencer.');notice('Répertoire V3 enregistré et relu : '+n+' badge(s), '+skipped+' dossier(s) exclus.','success');
  }catch(e){notice('Préparation refusée : '+errorText(e),'error')}finally{btn.disabled=false}};
 function qrReference(decoded){const raw=String(decoded??'').trim();if(/^G10-TP-SCOL-QR\d+$/i.test(raw))return raw.toUpperCase();let u;try{u=new URL(raw)}catch(e){return null}if(u.protocol!=='https:'||u.hostname!=='taclargabon.github.io'||u.pathname!=='/G10-TRANSPORT-SCOLAIRE-V2/qr-test.html')return null;const ref=u.searchParams.get('code');return ref&&/^G10-TP-SCOL-QR\d+$/i.test(ref)?ref.toUpperCase():null;}
-async function onDetected(decoded){if(pending||busy||role!=='logistique')return;const bus=$('bus').value,stage=$('stage').value;if(!bus||!stage){notice('Choisis d’abord le bus et l’étape.','error');return;}const qr=qrReference(decoded);if(!qr){notice('QR non reconnu : ce badge ne correspond pas au format G10 prévu.','error');return;}
-const s=Object.values(roster).find(v=>String(v.qrRef).toUpperCase()===qr);if(!s){notice('Référence QR absente du répertoire V3. Demande à la Direction d’actualiser les badges.','error');return;}if(s.busId!==bus){notice('Bus incorrect : '+s.name+' est affecté à '+names[s.busId]+'. Aucun mouvement enregistré.','error');return;}
-pending={...s,stage,day:dateGabon()};await stopCamera();$('studentName').textContent=s.name;$('studentBus').textContent=names[s.busId];$('studentStage').textContent=stages[stage];$('studentRef').textContent=s.qrRef;const paid=s.paymentAccess==='paid';$('candidate').classList.toggle('allowed',paid);$('candidate').classList.toggle('denied',!paid);$('paymentGate').className='status '+(paid?'success':'error');$('paymentGate').textContent=paid?'Paiement soldé pour '+(s.paymentMonth||'la période en cours')+' — accès autorisé.':'Paiement non soldé ou statut à vérifier. Accès au bus interdit. Contacte la Direction.';$('confirm').disabled=!paid;$('confirm').textContent=paid?'Confirmer la montée':'Montée bloquée';$('candidate').hidden=false;notice(paid?'Badge reconnu et paiement à jour. Vérifie la présence puis confirme.':'Paiement non soldé : montée bloquée.',paid?'success':'error');}
+async function onDetected(decoded){
+ if(pending||busy||scanLookupBusy||role!=='logistique')return;
+ const bus=$('bus').value,stage=$('stage').value;
+ if(!bus||!stage){notice('Choisis d’abord le bus et l’étape.','error');return;}
+ const qr=qrReference(decoded);
+ if(!qr){notice('QR non reconnu : ce badge ne correspond pas au format G10 prévu.','error');return;}
+ scanLookupBusy=true;
+ try{
+  const latest=(await db.ref(DATA+'/scanRoster').once('value')).val();
+  roster=latest&&typeof latest==='object'?latest:{};
+  const student=Object.values(roster).find(v=>String(v.qrRef).toUpperCase()===qr);
+  if(!student){notice('Référence QR absente du répertoire V3. Demande à la Direction d’actualiser les badges.','error');return;}
+  if(student.busId!==bus){notice('Bus incorrect : '+student.name+' est affecté à '+names[student.busId]+'. Aucun mouvement enregistré.','error');return;}
+  pending={...student,stage,day:dateGabon()};
+  await stopCamera();
+  $('studentName').textContent=student.name;$('studentBus').textContent=names[student.busId];$('studentStage').textContent=stages[stage];$('studentRef').textContent=student.qrRef;
+  const paid=student.paymentAccess==='paid';
+  $('candidate').classList.toggle('allowed',paid);$('candidate').classList.toggle('denied',!paid);
+  $('paymentGate').className='status '+(paid?'success':'error');
+  $('paymentGate').textContent=paid?'Paiement soldé pour '+(student.paymentMonth||'la période en cours')+' — accès autorisé.':'Paiement non soldé ou statut à vérifier. Accès au bus interdit. Contacte la Direction.';
+  $('confirm').disabled=!paid;$('confirm').textContent=paid?'Confirmer la montée':'Montée bloquée';$('candidate').hidden=false;
+  notice(paid?'Badge reconnu et paiement à jour. Vérifie la présence puis confirme.':'Paiement non soldé : montée bloquée.',paid?'success':'error');
+ }catch(e){notice('Vérification du paiement impossible : '+errorText(e)+'. Aucune montée ne peut être confirmée.','error');}
+ finally{scanLookupBusy=false;}
+}
 $('start').onclick=async()=>{if(role!=='logistique')return;if(!$('bus').value||!$('stage').value){notice('Choisis le bus et l’étape avant d’activer la caméra.','error');return;}if(!Object.keys(roster).length){await loadRoster();if(!Object.keys(roster).length)return;}
 if(!window.isSecureContext){notice('La caméra nécessite une page HTTPS. Le fichier ouvert localement sur iPhone ne suffit pas.','error');return;}if(!window.Html5Qrcode){notice('Lecteur QR indisponible : vérifie Internet puis actualise.','error');return;}
 try{$('start').disabled=true;scanner=new Html5Qrcode('camera',{verbose:false});await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},text=>{onDetected(text).catch(e=>notice(errorText(e),'error'))},()=>{});scanning=true;$('stop').disabled=false;notice('Caméra active. Présente le badge dans le cadre.');}catch(e){await stopCamera();notice('Impossible d’ouvrir la caméra : '+errorText(e)+'. Vérifie l’autorisation caméra et HTTPS.','error')}};
