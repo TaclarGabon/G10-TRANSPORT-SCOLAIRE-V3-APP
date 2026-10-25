@@ -636,7 +636,9 @@ function table(head,body,cls=''){return '<div class="master-wrap"><table class="
 function mark(){dirty++;document.getElementById('v3-changes').textContent=dirty+' modification(s) de test, uniquement dans ce navigateur.'}
 let v3AbonnesClassFilter='',v3AbonnesSort='added';
 function v3AbonnesClassList(){return [...new Set(subs.map(s=>String(s.className||s.classe||s.class||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base',numeric:true}))}
-function v3AbonnesVisible(){return subs.map((s,i)=>({s,i})).filter(({s})=>!v3AbonnesClassFilter||String(s.className||s.classe||s.class||'').trim()===v3AbonnesClassFilter).sort((a,b)=>{if(v3AbonnesSort==='az'||v3AbonnesSort==='za'){const c=String(a.s.name||'').localeCompare(String(b.s.name||''),'fr',{sensitivity:'base'});return v3AbonnesSort==='az'?c:-c}const aa=Number(a.s.v3AddedAt)||0,bb=Number(b.s.v3AddedAt)||0;if(aa||bb)return (aa||0)-(bb||0)||a.i-b.i;return a.i-b.i})}
+function v3AbonnesVisible(){return subs.map((s,i)=>({s,i})).filter(({s})=>!v3AbonnesClassFilter||String(s.className||s.classe||s.class||'').trim()===v3AbonnesClassFilter).sort((a,b)=>{if(v3AbonnesSort==='az'||v3AbonnesSort==='za'){const c=String(a.s.name||'').localeCompare(String(b.s.name||''),'fr',{sensitivity:'base'});return v3AbonnesSort==='az'?c:-c}const aa=Number(a.s.createdAt||a.s.v3AddedAt)||0,bb=Number(b.s.createdAt||b.s.v3AddedAt)||0;if(aa||bb)return (aa||0)-(bb||0)||a.i-b.i;return a.i-b.i})}
+function v3AbonnesToolbar(){const classes=v3AbonnesClassList();return '<div class="v3-filter-bar" style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;padding:12px 0" aria-label="Filtres et tri des abonnés"><label>Classe <select id="v3AbonnesClass"><option value="">Toutes les classes</option>'+classes.map(c=>'<option value="'+esc(c)+'" '+(c===v3AbonnesClassFilter?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label><label>Ordre des élèves <select id="v3AbonnesSort"><option value="added" '+(v3AbonnesSort==='added'?'selected':'')+'>Ajoutés en dernier en bas</option><option value="az" '+(v3AbonnesSort==='az'?'selected':'')+'>A → Z</option><option value="za" '+(v3AbonnesSort==='za'?'selected':'')+'>Z → A</option></select></label></div>'}
+function v3AttachAbonnesToolbar(){const c=p.querySelector('#v3AbonnesClass'),s=p.querySelector('#v3AbonnesSort');if(c)c.onchange=()=>{v3AbonnesClassFilter=c.value;renderSubs()};if(s)s.onchange=()=>{v3AbonnesSort=s.value;renderSubs()}}
 function inlineEditor(row,object,fields,refresh,onCommit){
  const old=row.nextElementSibling;if(old&&old.classList.contains('v3-editrow')){old.remove();return}
  p.querySelectorAll('.v3-editrow').forEach(x=>x.remove());
@@ -919,7 +921,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
  const form=document.createElement('form');form.className='v3-inline-form';
  for(const [key,label,type] of fields){
   const box=document.createElement('label');box.textContent=label;
-  const input=document.createElement('input');input.name=key;input.type=type||'text';
+  const classChoices=key==='className'&&module==='subs'?[['','Choisir une classe'],...([...new Set(subs.map(s=>String(s.className||s.classe||s.class||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]))]:null;const input=document.createElement(classChoices?'select':'input');input.name=key;if(classChoices){classChoices.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;input.appendChild(o)});}else input.type=type||'text';
   if(type==='number'){input.min='0';input.step='1';}input.value=record[key]??'';
   box.appendChild(input);form.appendChild(box);
  }
@@ -951,9 +953,10 @@ function rowNew(module,fields,defaults={}){
 const subFields=[['name','Nom de l’élève'],['school','École'],['className','Classe'],['guardian','Parent / tuteur'],['whatsapp','Contact'],['emergencyPhone','Numéro d’urgence'],['address','Adresse / repère'],['busId','Bus (BUS-1/2/3)']];
 renderSubs=function(){
  p.innerHTML=header('Tableau des abonnés — '+subs.length+' dossiers','Présentation validée avec Martina • source Firebase V3.','<button class="btn green" id="addSub">+ Ajouter un abonné</button>')+
- table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
- subs.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
- p.querySelector('#addSub').onclick=()=>rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});
+ v3AbonnesToolbar()+table(['#','Enfant','École','Classe','Parent / tuteur','Contacts','Numéro d’urgence','Adresse / repère','Ligne / bus affecté','Action','Nettoyer'],
+ v3AbonnesVisible().map(({s,i},n)=>'<tr><td>'+(n+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
+ v3AttachAbonnesToolbar();
+ p.querySelector('#addSub').onclick=()=>{v3AbonnesClassFilter='';v3AbonnesSort='added';rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});}
  p.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editForm('subs',subs[+b.dataset.edit],subFields,b.closest('tr')));
  p.querySelectorAll('[data-clean]').forEach(b=>b.onclick=async()=>{
   const r=subs[+b.dataset.clean];if(!confirmTwice('les coordonnées de '+r.name+' dans V3'))return;
