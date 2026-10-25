@@ -1,0 +1,58 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>G10 — Essai Firebase sans SMS</title>
+<style>:root{--blue:#123f78;--green:#087d51;--ink:#1d3951;--bg:#edf5fb;--line:#d6e4f1}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:25px 18px;background:linear-gradient(110deg,#0d3973,#0b5c9a 75%,#098057);color:#fff}header h1{margin:12px 0 6px;font-size:clamp(25px,5vw,35px)}header p{margin:0}
+main{padding:18px 14px 38px;max-width:660px;margin:auto}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:20px;margin:13px 0;box-shadow:0 4px 16px #0c46740d}
+h2{font-size:21px;margin-top:0}label{font-weight:700;display:block;margin:15px 0 7px}input{width:100%;border:1px solid #bdd3e7;border-radius:9px;padding:12px;font:inherit}
+button{border:0;border-radius:10px;padding:12px 17px;font:inherit;font-weight:730;background:var(--green);color:#fff;cursor:pointer}button.secondary{background:#e3edf7;color:var(--blue)}button:disabled{opacity:.5;cursor:default}
+.note{padding:13px;border-radius:11px;background:#fff1d6;line-height:1.5;font-size:14px}.ok{padding:14px;border-radius:11px;background:#e5f7ed;color:#116140;line-height:1.5}.muted{font-size:14px;color:#5d788b;line-height:1.55}.hidden{display:none!important}
+footer{font-size:12px;color:#647b8e;padding:14px 0}
+</style></head><body><header><strong>🚌 G10 TRANSPORT SCOLAIRE</strong><h1>Test de connexion — sans SMS</h1><p>Mode fictif Firebase • zéro message envoyé</p></header>
+<main><div class="note"><strong>Mode d'essai uniquement.</strong> Utilise un numéro fictif enregistré au préalable dans Firebase Authentication → Téléphone → Numéros de téléphone pour les tests. Le code ne sera envoyé ni par WhatsApp ni par SMS : c'est celui défini dans Firebase.</div>
+<section class="card" id="form"><h2>Première connexion</h2>
+<p class="muted">Ne saisis pas ton véritable numéro. Utilise le numéro fictif et le code à six chiffres que tu viens d'enregistrer dans Firebase.</p>
+<label for="phone">Numéro fictif (+1…)</label><input id="phone" type="tel" autocomplete="off" inputmode="tel" placeholder="+1 650 555 0147">
+<p><button id="start" type="button">Commencer la vérification</button></p>
+<div id="recaptcha" style="height:0;overflow:hidden"></div>
+<div id="codeSection" class="hidden"><label for="code">Code de test enregistré dans Firebase</label><input id="code" type="text" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="6 chiffres"><p><button id="check" type="button">Valider mon code</button></p></div>
+</section>
+<section class="card hidden" id="signed"><h2>✅ Connexion de test réussie</h2><p class="ok">Firebase reconnaît le numéro fictif et la session a été conservée sur cet appareil.</p><p id="who" class="muted"></p><p class="muted">Ferme cette page puis rouvre-la : si la session est toujours valide, tu arriveras directement ici, sans code.</p><p><button id="signout" type="button" class="secondary">Déconnexion du test</button></p></section>
+<div class="card"><p id="status" role="status" class="muted">Prêt : aucun SMS réel ne sera envoyé depuis cette page.</p></div>
+<footer>Test d'authentification exclusivement. Aucun dossier d'enfant, aucune donnée V3 et aucun accès parent réel sur cette page. Le numéro fictif crée néanmoins un compte Firebase Auth de test : après validation du pilote, supprimer ce compte et le numéro fictif de la configuration Firebase.</footer>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script>
+(()=>{"use strict";
+const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);let auth,app,verifier,confirmation,busy=false;
+function status(t){$("status").textContent=t}
+function errorMessage(e){const k=String(e?.code||"");if(k.includes("invalid-phone-number"))return"Le numéro fictif doit être complet, avec l'indicatif +1.";if(k.includes("invalid-verification-code"))return"Code incorrect : utilise exactement les six chiffres enregistrés dans Firebase.";if(k.includes("operation-not-allowed"))return"Le fournisseur Téléphone n'est pas actif.";if(k.includes("session-expired"))return"Test expiré. Recharge et recommence une seule fois.";if(k.includes("captcha"))return"Vérification du test refusée : recharge la page et réessaie avec le numéro fictif déclaré dans Firebase.";return "Firebase : "+String(e?.message||k||"erreur non précisée")}
+function showSigned(user){$("form").classList.toggle("hidden",!!user);$("signed").classList.toggle("hidden",!user);if(user){const n=String(user.phoneNumber||"");$("who").textContent=n?"Numéro fictif connecté : "+n.slice(0,3)+"••••"+n.slice(-4):"Compte de test connecté";status("Session enregistrée. Recharge la page pour vérifier qu'elle persiste.");}}
+$("start").onclick=async()=>{if(busy)return;
+ const number=$("phone").value.replace(/[\s()-]/g,"");
+ if(!/^\+1\d{10}$/.test(number)){status("Entre un numéro de test au format +1 suivi de 10 chiffres.");return}
+ if(!confirm("Ce numéro a-t-il été enregistré dans Firebase comme numéro de test ? Aucun SMS ne sera envoyé."))return;
+ busy=true;$("start").disabled=true;
+ try{
+  status("Firebase vérifie le numéro fictif…");
+  if(!verifier)verifier=new firebase.auth.RecaptchaVerifier("recaptcha",{size:"invisible"},app);
+  confirmation=await auth.signInWithPhoneNumber(number,verifier);
+  $("codeSection").classList.remove("hidden");
+  status("Numéro fictif reconnu. Entre le code à six chiffres configuré dans Firebase. Aucun SMS envoyé.");
+ }catch(e){status(errorMessage(e));if(verifier){try{verifier.clear()}catch(_){}verifier=null}}
+ finally{busy=false;$("start").disabled=false}
+};
+$("check").onclick=async()=>{if(busy||!confirmation)return;const c=$("code").value.trim();if(!/^\d{6}$/.test(c)){status("Entre les six chiffres de test.");return}
+ busy=true;$("check").disabled=true;
+ try{const r=await confirmation.confirm(c);if(!r.user)throw new Error("Aucune confirmation Firebase");showSigned(r.user)}
+ catch(e){status(errorMessage(e))}
+ finally{busy=false;$("check").disabled=false}
+};
+$("signout").onclick=async()=>{await auth.signOut();confirmation=null;$("codeSection").classList.add("hidden");$("code").value="";showSigned(null);status("Session fermée. La prochaine connexion de test demandera de nouveau le code.")};
+if(!window.firebase?.auth){status("Firebase est indisponible. Vérifie ta connexion Internet.");return}
+app=firebase.apps.find(a=>a.name==="g10-fictional-auth-pilot")||firebase.initializeApp(cfg,"g10-fictional-auth-pilot");
+auth=app.auth();auth.languageCode="fr";
+auth.settings.appVerificationDisabledForTesting=true; // mock reCAPTCHA; ONLY Firebase-registered fictional numbers can sign in.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>auth.onAuthStateChanged(showSigned)).catch(e=>status(errorMessage(e)));
+})();
+</script></body></html>
