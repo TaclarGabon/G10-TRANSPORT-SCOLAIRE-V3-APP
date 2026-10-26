@@ -699,7 +699,7 @@ function renderReports(){
  const dateOf=x=>iso(x?.date||x?.paymentDate||x?.day||x?.createdAt||'');
  const isIn=(x)=>{const d=dateOf(x);return !!d&&d>=state.from&&d<=state.to;};
  const amount=x=>moneyNum(x?.amountReceived??x?.amountPaid??x?.amount??0);
- const escRows=(rows,fields)=>rows.map(x=>'<tr>'+fields.map(f=>'<td>'+esc(typeof f==='function'?f(x):x?.[f]??'—')+'</td>').join('')+'</tr>').join('');
+ const escRows=(rows,fields)=>rows.map(x=>{const cells=typeof fields==='function'?fields(x):fields.map(f=>typeof f==='function'?f(x):x?.[f]??'—');return '<tr>'+cells.map(v=>'<td>'+esc(v??'—')+'</td>').join('')+'</tr>';}).join('');
  const box=(label,value,color)=>'<div class="report-stat '+color+'"><div class="small">'+label+'</div><strong>'+value+'</strong></div>';
  const names={'BUS-1':'Bus 1 — Akanda','BUS-2':'Bus 2 — Inter-Akanda','BUS-3':'Bus 3 — Owendo'};
  const render=()=>{
