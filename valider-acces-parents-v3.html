@@ -1,0 +1,120 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>G10 Direction — Autorisations des parents</title>
+<style>
+:root{--navy:#083a75;--green:#087e51;--bg:#edf5fb;--border:#d4e4f0;--ink:#183752}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,sans-serif;margin:0}
+header{background:var(--navy);color:#fff;padding:25px 20px}h1{margin:0;font-size:23px}header p{margin:8px 0 0}
+main{max-width:830px;margin:15px auto;padding:0 15px 35px}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:21px;margin:14px 0;box-shadow:0 5px 17px #173f5c0b}
+h2{font-size:20px}h3{font-size:16px}label{display:block;font-weight:750;margin:13px 0 6px}
+input:not([type=checkbox]){width:100%;font:inherit;padding:11px;border:1px solid #bdd2e3;border-radius:9px}
+input[type=checkbox]{width:19px;height:19px;margin:0;vertical-align:middle}
+button{background:var(--green);border:0;border-radius:9px;color:white;padding:10px 15px;font:inherit;font-weight:750;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}.secondary{background:#e5eef6;color:var(--ink)}
+.danger{background:#f8e8e8;color:#a52c33}.muted{font-size:13px;color:#617a90;line-height:1.6}
+.notice{background:#fff3d9;color:#664c17;padding:13px;border-radius:10px;line-height:1.5}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.family{border:1px solid var(--border);border-radius:11px;margin:11px 0;padding:14px}
+.family h3{margin:0}.family small{display:block;margin:8px 0;color:#60788f}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.hidden{display:none!important}
+#status{padding:13px;border-radius:9px;background:#e4eef8;white-space:pre-line;line-height:1.55}
+</style></head><body>
+<header><h1>🚌 G10 Direction — Accès Parents</h1><p>Autoriser les familles déjà enregistrées dans la V3, sans ressaisie et sans modification de Martina</p></header>
+<main>
+<div class="notice"><strong>Réservé à la Direction G10.</strong> Cette page n'est pas destinée aux parents. Seuls les numéros réels des responsables, déjà enregistrés sur leurs fiches G10 V3, peuvent être validés. Ne valide jamais un compte de démonstration Firebase.</div>
+<section class="card" id="gate">
+<h2>Connexion Direction</h2>
+<form id="login">
+<label for="email">E-mail Direction V3</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password" required>
+<p><button id="connect" type="submit">Charger les familles G10 V3</button></p>
+</form></section>
+<section id="admin" class="hidden">
+<div class="card"><div class="row"><strong id="who"></strong><button class="secondary" id="logout">Fermer la session</button></div>
+<h2>Choisir un dossier existant</h2>
+<p class="muted">Rechercher un parent ou un enfant. Le dossier est retrouvé dans Firebase V3 en lecture seule. Aucun contact n'est recopié dans la page.</p>
+<label for="search">Rechercher</label><input id="search" placeholder="Nom de l'enfant ou du parent">
+<div style="display:flex;gap:9px;align-items:center;margin-top:14px">
+<input type="checkbox" id="verified"><label for="verified" style="margin:0;font-weight:600">Je confirme avoir vérifié l'identité du responsable, que son numéro est réel et qu'il n'est pas un numéro fictif Firebase.</label>
+</div>
+<div id="families"></div>
+</div></section>
+<div class="card"><p id="status" role="status">Connexion Firebase en attente. Aucun dossier familial n'est encore activé.</p></div>
+<p class="muted">Pour une nouvelle famille : 1) le parent vérifie son vrai numéro dans G10 Apps, 2) la Direction confirme son identité ici une seule fois, 3) le parent retrouve ses enfants. Le serveur autorise uniquement les enfants associés au contact vérifié dans G10 V3.</p>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script>
+(()=>{"use strict";
+const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id);let auth,list,approve,revoke,records=[];
+function status(t){$("status").textContent=t}
+function human(e){
+ const code=String(e?.code||"");
+ if(code.includes("not-found")||code.includes("unavailable")||code.includes("internal"))
+  return "Le service sécurisé d'accès Parents n'a pas encore été déployé. Aucune autorisation modifiée.";
+ if(code.includes("permission-denied"))return "Accès refusé : compte Direction actif obligatoire.";
+ return String(e?.message||"Opération non confirmée");
+}
+function container(cls,text){const el=document.createElement("div");el.className=cls;el.textContent=text;return el}
+function render(){
+ const q=$("search").value.trim().toLowerCase(),listEl=$("families");listEl.replaceChildren();
+ const items=records.filter(e=>(e.studentName+" "+e.guardian).toLowerCase().includes(q)).slice(0,70);
+ for(const row of items){
+  const card=document.createElement("section");card.className="family";
+  const h=document.createElement("h3");h.textContent=row.studentName;card.append(h);
+  card.append(container("muted",[row.school,row.guardian,row.phoneHint].filter(Boolean).join(" · ")));
+  const actions=document.createElement("div");actions.className="actions";
+  const yes=document.createElement("button");yes.textContent="Autoriser le parent";yes.disabled=!row.eligible;
+  const no=document.createElement("button");no.className="danger";no.textContent="Révoquer l'accès";no.disabled=!row.eligible;
+  async function call(fn,verb,needsConfirmation){
+   if(!row.eligible){status("Dossier parental incomplet ou ambigu.");return}
+   if(needsConfirmation&&!$("verified").checked){status("Coche d'abord la vérification d'identité et du numéro réel.");return}
+   if(!confirm(verb+" du dossier de "+row.studentName+" ? Cela ne modifiera pas ses données V3."))return;
+   yes.disabled=true;no.disabled=true;
+   status("Vérification côté serveur en cours…");
+   try{
+    const result=(await fn({studentId:row.studentId,verifiedInPerson:needsConfirmation})).data;
+    status(verb==="Autorisation"?
+      "Accès personnel approuvé pour le compte Firebase du parent. "+result.childCount+" enfant(s) rattaché(s). Le parent peut rouvrir G10 Apps et actualiser.":
+      "Accès révoqué. Aucun dossier de la V3 n'a été modifié.");
+   }catch(e){status(human(e))}
+   finally{yes.disabled=!row.eligible;no.disabled=!row.eligible}
+  }
+  yes.onclick=()=>call(approve,"Autorisation",true);
+  no.onclick=()=>call(revoke,"Révocation",false);
+  actions.append(yes,no);card.append(actions);listEl.append(card);
+ }
+ if(!items.length)listEl.append(container("muted","Aucun dossier trouvé."));
+}
+$("search").oninput=render;
+$("login").onsubmit=async e=>{
+ e.preventDefault();$("connect").disabled=true;status("Connexion Direction en cours…");
+ try{
+  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);
+  $("password").value="";
+ }catch(e){$("password").value="";status(human(e))}
+ finally{$("connect").disabled=false}
+};
+$("logout").onclick=async()=>{await auth.signOut();status("Session Direction fermée.")};
+if(!window.firebase?.auth||!window.firebase?.functions){status("Firebase indisponible.");return}
+const app=firebase.apps.find(a=>a.name==="g10-parent-approval")||firebase.initializeApp(cfg,"g10-parent-approval");
+auth=app.auth();const fn=app.functions("europe-west1");
+list=fn.httpsCallable("listG10ParentFamiliesV2");
+approve=fn.httpsCallable("approveG10ParentV2");
+revoke=fn.httpsCallable("revokeG10ParentV2");
+auth.onAuthStateChanged(async user=>{
+ $("gate").classList.toggle("hidden",!!user);$("admin").classList.toggle("hidden",!user);
+ if(!user){records=[];return}
+ $("who").textContent="Compte Direction : "+(user.email||"G10");
+ try{
+  status("Lecture en cours, abonnés G10 V3…");
+  const response=(await list({})).data;
+  records=response.families||[];render();
+  status(records.length+" dossiers V3 consultables. Aucun accès accordé sans validation expresse.");
+ }catch(e){status(human(e))}
+});
+})();
+</script></body></html>
