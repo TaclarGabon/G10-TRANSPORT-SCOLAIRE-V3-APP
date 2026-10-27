@@ -1,0 +1,45 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>G10 — Parents, pilote Spark isolé</title><style>
+:root{font-family:system-ui,sans-serif;color:#183451;background:#eff5fa}*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(110deg,#09376e,#087d69);color:white;padding:24px 16px}main{max-width:720px;margin:auto;padding:15px}.card{background:white;border:1px solid #d9e5ef;border-radius:16px;padding:18px;margin:14px 0}button,input{font:inherit;padding:12px;border-radius:9px}input{width:100%;border:1px solid #b5cfe0;margin:6px 0 12px}button{background:#087b50;color:white;border:0;cursor:pointer;margin:6px 6px 6px 0}button.secondary{background:#e2eef8;color:#173c62}.muted{color:#5c7288}.step{border-top:1px solid #e1ebf0;padding:12px 0}.hidden{display:none}.notice{background:#fff5d7;padding:12px;border-radius:10px}label{font-weight:700}h1{margin:0}h2{font-size:21px}</style></head><body>
+<header><h1>🚌 G10 Apps Scolaire</h1><p>Accès Parents — pilote isolé, sans Cloud Functions</p></header><main><section class="card notice"><strong>Version de test — non distribuable aux familles.</strong> Cette page ne modifie ni la V2 ni l'administration de Martina. Aucun enfant réel n'est préchargé dans le fichier.</section>
+<section id="login" class="card"><h2>Connexion parent</h2><p class="muted">Pour le pilote Spark, utilisez un compte parent Firebase e-mail/mot de passe créé séparément par l'équipe G10. Aucun accès anonyme ni PIN commun.</p><form id="form"><label>E-mail parent<input id="email" type="email" autocomplete="username" required></label><label>Mot de passe<input id="password" type="password" autocomplete="current-password" required></label><button type="submit">Me connecter</button></form></section>
+<section id="account" class="card hidden"><h2>Mes enfants</h2><p id="identity" class="muted"></p><label>Journée à Libreville<input id="day" type="date"></label><button id="refresh">Actualiser</button><button class="secondary" id="logout">Déconnexion</button><div id="children"></div></section>
+<section class="card"><p id="status" role="status">Initialisation…</p></section>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>(()=>{"use strict";
+const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
+const $=id=>document.getElementById(id),status=s=>$("status").textContent=s;
+const stages=[["boardingAM","Montée du matin"],["schoolArrival","Arrivée à l'école"],["boardingPM","Montée au retour"],["homeDrop","Dépose du soir"]];
+function gabonDay(){const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Libreville",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());let d={};parts.forEach(p=>d[p.type]=p.value);return d.year+"-"+d.month+"-"+d.day}
+function time(x){let t=Number(x);return Number.isFinite(t)&&t>0?new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit"}).format(new Date(t)):"Non disponible"}
+function line(parent,css,value){const p=document.createElement("p");p.className=css;p.textContent=value;parent.append(p)}
+let auth,db,loading=false;
+async function load(){
+const u=auth.currentUser;if(!u||loading)return;loading=true;$("refresh").disabled=true;
+try{
+ const day=$("day").value;if(!/^\d{4}-\d{2}-\d{2}$/.test(day))throw Error("Date incorrecte");
+ // Only reads from the authenticated user's isolated, pre-approved mirror; never from V2 demoState.
+ const snap=await db.ref("g10ParentsSparkPilot/families/"+u.uid+"/days/"+day).once("value");
+ const data=snap.val(),target=$("children");target.replaceChildren();
+ if(!data||!data.children){line(target,"muted","Aucun trajet associé à ce compte pour cette journée.");status("Connexion validée ; aucune donnée familiale pour cette date.");return}
+ const items=Object.values(data.children).filter(v=>v&&typeof v==="object");
+ for(const child of items){
+ const card=document.createElement("section");card.className="card";
+ const h=document.createElement("h3");h.textContent=String(child.name||"Enfant");card.append(h);
+ line(card,"muted",String(child.school||""));
+ for(const [key,label] of stages){const row=document.createElement("div");row.className="step";
+ const ev=child.movements?.[key];line(row,"",label+" : "+(ev?time(ev.timeMs):"En attente"));
+ if(ev?.validatedBy)line(row,"muted","Validé par "+String(ev.validatedBy));card.append(row)}
+ target.append(card)}
+ status(items.length+" enfant(s) affiché(s) depuis l'espace du compte connecté.");
+}catch(e){status("Accès indisponible : "+String(e.message||e)+". Aucun accès à V2 n'est tenté.");}
+finally{loading=false;$("refresh").disabled=false}
+}
+if(!window.firebase?.auth||!window.firebase?.database){status("Firebase indisponible.");return}
+const app=firebase.apps.find(x=>x.name==="g10-spark-parent-pilot")||firebase.initializeApp(cfg,"g10-spark-parent-pilot");
+auth=app.auth();db=app.database();$("day").value=gabonDay();
+$("form").onsubmit=async e=>{e.preventDefault();status("Connexion en cours…");try{await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);$("password").value=""}catch(err){$("password").value="";status("Connexion refusée : "+String(err.message||err))}};
+$("refresh").onclick=load;$("day").onchange=load;
+$("logout").onclick=()=>auth.signOut();
+auth.onAuthStateChanged(u=>{$("login").classList.toggle("hidden",!!u);$("account").classList.toggle("hidden",!u);$("children").replaceChildren();if(u){$("identity").textContent=u.email||"Compte parent";load()}else{status("Connectez-vous avec un compte Parent de test autorisé.")}});
+})();</script></body></html>
