@@ -1305,7 +1305,9 @@ renderSubscription=function(){
   const student=subs.find(x=>String(x.id)===b.dataset.subEdit);if(!student)return;
   editForm('subs',{...student,discountPct:String(student.paymentV147?.discountPct||0)},v3SubscriptionFields,b.closest('tr'));
  });
- p.querySelectorAll('[data-pay-student]').forEach(b=>b.onclick=()=>{const studentId=b.dataset.payStudent;document.querySelector('#tabs button[data-tab="paiements"]').click();paymentForm(null,studentId);p.querySelector('#v3-payment-editor')?.scrollIntoView({block:'start'});});
+ p.querySelectorAll('[data-pay-student]').forEach(b=>b.onclick=()=>{const studentId=b.dataset.payStudent;const tab=document.querySelector('#tabs button[data-tab="paiements"]');if(!tab)return;tab.click();paymentForm(null,studentId);const student=subs.find(x=>String(x.id)===studentId);const linked=payments.filter(x=>String(x.studentId)===studentId);const info=document.createElement('div');info.className='card';info.setAttribute('role','status');info.innerHTML='<b>Dossier sélectionné : '+esc(student?.name||studentId)+'</b><p class="small">'+linked.length+' transaction(s) V3 existante(s). Vérifier ci-dessous avant tout nouvel encaissement.</p>';p.querySelector('#v3-payment-editor')?.after(info);
+ p.querySelectorAll('tr[data-student-id]').forEach(row=>{row.hidden=row.dataset.studentId!==studentId;});
+ const summary=document.createElement('div');summary.className='small';summary.textContent='Affichage limité au dossier sélectionné pour le contrôle. Les indicateurs globaux restent inchangés.';info.appendChild(summary);});
  p.querySelectorAll('[data-sub-qr]').forEach(b=>b.onclick=()=>{const i=subs.findIndex(x=>String(x.id)===b.dataset.subQr);if(i>=0)openBadge(i)});
 };
 const driverFields=[['name','Nom complet'],['phone','Téléphone'],['zone','Zone'],['busId','Bus (BUS-1/2/3)'],['plate','Immatriculation']];
@@ -1495,8 +1497,10 @@ function renderExpenses(){
  p.querySelectorAll('[data-exp-section]').forEach(b=>b.onclick=()=>{if(!v3GuardUnsavedEdit())return;v3ExpenseSection=b.dataset.expSection;renderExpenses();});
 }
 function paymentForm(record=null,preselectStudentId=''){
+ const chosenStudent=subs.find(x=>String(x.id)===String(preselectStudentId||record?.studentId||''));
  const old=p.querySelector('#v3-payment-editor');if(old)old.remove();
- const wrapper=document.createElement('div');wrapper.id='v3-payment-editor';wrapper.className='card';
+ const wrapper=document.createElement('div');wrapper.id='v3-payment-editor';wrapper.className='card';wrapper.setAttribute('tabindex','-1');
+ if(chosenStudent){const title=document.createElement('h3');title.textContent='Saisir le règlement de : '+chosenStudent.name;wrapper.appendChild(title);const note=document.createElement('p');note.className='small';note.textContent='Tarif mensuel : '+cash(chosenStudent.price)+' — renseigner uniquement le montant réellement encaissé. Aucun versement automatique.';wrapper.appendChild(note);}
  const form=document.createElement('form');form.className='v3-inline-form';
  const fields=[['studentId','Élève','select'],['date','Date','date'],['month','Mois concerné','month'],['amount','Montant FCFA','number'],['method','Mode','select-method'],['status','Statut','select-status'],['note','Observation','text']];
  for(const [key,label,type] of fields){const box=document.createElement('label');box.textContent=label;let input;
@@ -1523,6 +1527,7 @@ function paymentForm(record=null,preselectStudentId=''){
   try{await saveRecord('payments',target,record?copy(record):null);}catch(err){error.textContent=formatError(err);save.disabled=false;}
  };
  wrapper.appendChild(form);p.querySelector('.card.head').after(wrapper);
+ if(chosenStudent){form.elements.studentId.value=String(chosenStudent.id);const focusField=form.elements.amount;wrapper.scrollIntoView({behavior:'auto',block:'start'});focusField?.focus({preventScroll:true});}
 }
 renderPayments=function(){
  const received=sums().received;
@@ -1555,12 +1560,12 @@ renderPayments=function(){
   const latest=linked.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
   const v3ConfirmedAmount=linked.filter(x=>/^(pay[ée]|sold[ée]|confirm)/i.test(String(x.status||''))).reduce((n,x)=>n+moneyNum(x.amount),0);
   const v3AmountInfo=linked.length?'<small style="display:block;color:#0d6473">V3 confirmé : '+cash(v3ConfirmedAmount)+' ('+linked.length+' transaction(s))</small>':'';
-  return '<tr data-month-key="'+esc(monthOf(s))+'" data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+calendar(labelDate(s),'date','paymentDate',i)+(labelDate(s)==='—'&&latest?'<small style="display:block;color:#0d6473">V3 : '+esc(latest.date||'—')+'</small>':'')+'</td><td>'+calendar(labelMonth(s),'month','paymentMonth',i)+(labelMonth(s)==='—'&&latest?'<small style="display:block;color:#0d6473">V3 : '+esc(latest.month||'—')+'</small>':'')+'</td><td class="v3-payment-amount">'+cash(amount)+v3AmountInfo+'</td><td>'+modeMenu(labelMethod(s),i)+'</td><td>'+historicalStatusMenu(String(s.payment||''),i)+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button>'+(paid?' <button type="button" class="edit-btn" data-legacy-receipt="'+i+'">Justificatif</button>':'')+'</td></tr>';
+  return '<tr data-student-id="'+esc(s.id)+'" data-month-key="'+esc(monthOf(s))+'" data-historical-payment="'+(amount>0?'declared':'none')+'"><td>'+badge(s.name||'Élève sans nom')+'</td><td>'+calendar(labelDate(s),'date','paymentDate',i)+(labelDate(s)==='—'&&latest?'<small style="display:block;color:#0d6473">V3 : '+esc(latest.date||'—')+'</small>':'')+'</td><td>'+calendar(labelMonth(s),'month','paymentMonth',i)+(labelMonth(s)==='—'&&latest?'<small style="display:block;color:#0d6473">V3 : '+esc(latest.month||'—')+'</small>':'')+'</td><td class="v3-payment-amount">'+cash(amount)+v3AmountInfo+'</td><td>'+modeMenu(labelMethod(s),i)+'</td><td>'+historicalStatusMenu(String(s.payment||''),i)+'</td><td><button type="button" class="edit-btn" data-payment-details="'+i+'" aria-expanded="false">Détails</button>'+(paid?' <button type="button" class="edit-btn" data-legacy-receipt="'+i+'">Justificatif</button>':'')+'</td></tr>';
  }).join('');
  const transactionRows=payments.map((pay,i)=>{
   const student=subs.find(s=>String(s.id)===String(pay.studentId));
   const name=student?.name||'Élève non retrouvé';
-  return '<tr data-month-key="'+esc(String(pay.month||''))+'" data-transaction-month="true"><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button> '+(/^(pay[ée]|sold[ée]|confirm)/i.test(String(pay.status||''))?'<button class="edit-btn" data-v3-receipt="'+i+'">Reçu / Imprimer</button>':'')+'</td></tr>';
+  return '<tr data-student-id="'+esc(pay.studentId)+'" data-month-key="'+esc(String(pay.month||''))+'" data-transaction-month="true"><td>'+badge(name)+'</td><td>'+esc(pay.date||'—')+'</td><td>'+esc(pay.month||'—')+'</td><td class="v3-payment-amount">'+cash(pay.amount)+'</td><td>'+esc(pay.method||'—')+'</td><td>'+badge(pay.status||'Non renseigné',statusKind(pay.status||''))+'</td><td><button class="edit-btn" data-pay="'+i+'">Modifier</button> '+(/^(pay[ée]|sold[ée]|confirm)/i.test(String(pay.status||''))?'<button class="edit-btn" data-v3-receipt="'+i+'">Reçu / Imprimer</button>':'')+'</td></tr>';
  }).join('')||'<tr><td colspan="7" class="v3-payment-empty">Aucune transaction V3 distincte enregistrée. Le cumul historique ci-dessus ne constitue pas une liste de reçus individuels.</td></tr>';
  p.innerHTML=header('Paiements — tous les axes','Suivi des fiches importées et transactions V3 distinctes, sans double comptage.','<button class="btn green" id="addPayment">+ Ajouter un paiement</button>')+
  monthBubbles+
