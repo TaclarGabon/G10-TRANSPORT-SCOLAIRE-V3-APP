@@ -11,11 +11,11 @@ main{max-width:1100px;margin:0 auto;padding:10px 9px 35px}
 .zone span{background:#ffd84a;color:#17324f;padding:7px 11px;border-radius:99px;font-weight:900;font-size:11px;box-shadow:0 2px 8px #0002}
 .welcome{text-align:center;padding:13px 4px 5px}.welcome h1{margin:0;color:var(--b);font-size:clamp(20px,3.4vw,29px);font-weight:950}.welcome p{margin:7px 0;font-size:12px;color:#627b94;font-weight:800;letter-spacing:.04em}
 .flag{display:flex;height:5px;width:70%;max-width:620px;margin:13px auto;border-radius:9px;overflow:hidden}.flag i{flex:1}.g{background:#1fa85a}.y{background:#ffd23f}.bb{background:#123d78}
-.roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:17px 0}
+.roles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:17px 0}
 .role{border:0;border-radius:17px;color:#fff;padding:20px 14px;min-height:110px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;font-weight:850;transition:transform .18s ease,filter .18s ease,box-shadow .18s ease;box-shadow:0 5px 16px #123d7814;opacity:0;animation:roleIn .48s cubic-bezier(.2,.75,.2,1) forwards}
-.role:nth-child(1){animation-delay:.17s}.role:nth-child(2){animation-delay:.27s}.role:nth-child(3){animation-delay:.37s}
+.role:nth-child(1){animation-delay:.17s}.role:nth-child(2){animation-delay:.27s}.role:nth-child(3){animation-delay:.37s}.role:nth-child(4){animation-delay:.47s}
 .role b{font-size:19px;letter-spacing:.01em}.role span{font-size:12px;margin-top:8px;font-weight:600;opacity:.96}.role.admin{background:#ff812d;cursor:pointer}.role.admin:hover,.role.admin:focus-visible{transform:translateY(-3px);box-shadow:0 12px 25px #ff812d3d;outline:3px solid #ffd23f;outline-offset:3px}
-.role.gestion{background:#117e9c}.role.direction{background:#123d78}.role.pending{filter:saturate(.65);opacity:.78;cursor:not-allowed}.role.pending b{opacity:.9}
+.role.exploitation{background:#12675b}.role.gestion{background:#117e9c}.role.direction{background:#123d78}.role.pending{filter:saturate(.65);opacity:.78;cursor:not-allowed}.role.pending b{opacity:.9}
 .notice{color:#6c8197;text-align:center;font-size:12px;margin:10px auto;max-width:760px;line-height:1.6}
 @keyframes heroIn{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
 @keyframes roleIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -28,6 +28,7 @@ main{max-width:1100px;margin:0 auto;padding:10px 9px 35px}
 <nav class="roles" aria-label="Espaces de travail G10">
 <a class="role admin" href="administration-v3-martina.html?v=20261101-conflit-merge"><b>Administration</b><span>Abonnés, paiements et gestion V3</span></a>
 <a class="role gestion" href="scan-logistique.html?v=20261026-roles"><b>Responsable logistique</b><span>Suivi des mouvements et scan des badges</span></a>
+<a class="role exploitation" href="exploitation-v4-ben.html?v=20261104"><b>Chef d’exploitation</b><span>Flotte, circuits, équipes, conformité et transport V4</span></a>
 <a class="role direction" href="administration-v3-martina.html?v=20261101-conflit-merge"><b>Direction</b><span>Tableau complet et pilotage V3</span></a>
 </nav>
 <p class="notice">Choisis ton espace puis connecte-toi avec le compte Firebase correspondant. Les autorisations du profil sont vérifiées par l’application.</p>
