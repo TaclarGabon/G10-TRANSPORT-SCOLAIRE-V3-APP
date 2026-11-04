@@ -1571,7 +1571,7 @@ renderPayments=function(){
  monthBubbles+
  '<div class="v3-payment-kpis">'+
  '<div class="v3-payment-kpi primary"><div class="small">Encaissements V3 confirmés</div><strong>'+cash(v3Confirmed)+'</strong></div>'+
- '<div class="v3-payment-kpi secondary"><div class="small">Élèves avec règlement V3</div><strong>'+new Set(payments.map(x=>String(x.studentId))).size+' / '+subs.length+'</strong></div>'+
+ '<div class="v3-payment-kpi secondary"><div class="small">Élèves avec règlement V3</div><strong>'+new Set(payments.filter(x=>/^(pay[ée]|sold[ée]|confirm)/i.test(String(x.status||'')) && moneyNum(x.amount)>0).map(x=>String(x.studentId))).size+' / '+subs.length+'</strong></div>'+
  '<div class="v3-payment-kpi secondary"><div class="small">Paiements V3 confirmés</div><strong>'+cash(v3Confirmed)+'</strong></div>'+ 
  '<div class="v3-payment-kpi secondary"><div class="small">Autres paiements V3</div><strong>'+cash(v3Other)+'</strong></div>'+ 
  '<div class="v3-payment-kpi secondary"><div class="small">Transactions V3 distinctes</div><strong>'+payments.length+'</strong></div></div>'+
