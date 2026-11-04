@@ -1537,7 +1537,7 @@ renderPayments=function(){
  const today=new Date(),schoolYear=today.getUTCMonth()<8?today.getUTCFullYear()-1:today.getUTCFullYear();
  const monthKeys=Array.from({length:12},(_,i)=>new Date(Date.UTC(schoolYear,8+i,1)).toISOString().slice(0,7));
  const monthLabel=k=>new Intl.DateTimeFormat('fr-FR',{month:'short',year:'2-digit',timeZone:'UTC'}).format(new Date(k+'-01T12:00:00Z'));
- const monthCounts=k=>subs.filter(x=>monthOf(x)===k).length+payments.filter(x=>String(x.month||'')===k).length;
+ const monthCounts=k=>payments.filter(x=>String(x.month||'')===k).length;
  const monthBubbles='<div class="v3-month-filter" role="group" aria-label="Consulter les paiements par mois">'+
  '<button type="button" class="on" data-month-filter="all">Tous les mois<span class="count">Vue générale</span></button>'+
  monthKeys.map(k=>'<button type="button" data-month-filter="'+k+'" class="'+(monthCounts(k)?'has-record':'')+'">'+monthLabel(k)+'<span class="count">'+monthCounts(k)+' fiche(s)</span></button>').join('')+'</div>'+
@@ -1570,15 +1570,15 @@ renderPayments=function(){
  p.innerHTML=header('Paiements — tous les axes','Suivi des fiches importées et transactions V3 distinctes, sans double comptage.','<button class="btn green" id="addPayment">+ Ajouter un paiement</button>')+
  monthBubbles+
  '<div class="v3-payment-kpis">'+
- '<div class="v3-payment-kpi primary"><div class="small">Cumul déclaré sur les fiches importées</div><strong>'+cash(received)+'</strong></div>'+
- '<div class="v3-payment-kpi secondary"><div class="small">Fiches avec montant déclaré</div><strong>'+declared+' / '+subs.length+'</strong></div>'+
+ '<div class="v3-payment-kpi primary"><div class="small">Encaissements V3 confirmés</div><strong>'+cash(v3Confirmed)+'</strong></div>'+
+ '<div class="v3-payment-kpi secondary"><div class="small">Élèves avec règlement V3</div><strong>'+new Set(payments.map(x=>String(x.studentId))).size+' / '+subs.length+'</strong></div>'+
  '<div class="v3-payment-kpi secondary"><div class="small">Paiements V3 confirmés</div><strong>'+cash(v3Confirmed)+'</strong></div>'+ 
  '<div class="v3-payment-kpi secondary"><div class="small">Autres paiements V3</div><strong>'+cash(v3Other)+'</strong></div>'+ 
  '<div class="v3-payment-kpi secondary"><div class="small">Transactions V3 distinctes</div><strong>'+payments.length+'</strong></div></div>'+
- '<div class="v3-payment-intro"><b>Important :</b> le cumul provient des montants déclarés sur les fiches des élèves importées depuis la V2. Les lignes ci-dessous sont un <b>suivi par élève</b>, pas des transactions bancaires reconstituées ni des reçus. Les nouveaux paiements V3 sont désormais visibles en montants séparés. Aucun total consolidé n’est affiché avant rapprochement, afin d’éviter le double comptage.</div>'+
- '<div class="v3-payment-section"><h3>Suivi des paiements déclarés par élève — fiches importées</h3><div class="v3-payment-filter" role="group" aria-label="Filtrer les fiches"><button type="button" data-payment-filter="all" class="on">Tous ('+subs.length+')</button><button type="button" data-payment-filter="declared">Avec montant ('+declared+')</button><button type="button" data-payment-filter="none">Sans montant ('+(subs.length-declared)+')</button></div></div>'+
- table(['Élève','Date','Mois','Montant déclaré','Mode','Statut','Action'],sourceRows||'<tr><td colspan="7" class="v3-payment-empty">Aucune fiche élève disponible dans la V3.</td></tr>','payments-table')+
- '<div class="v3-payment-section"><h3>Transactions enregistrées séparément dans la V3</h3><span class="small">'+payments.length+' transaction(s) distincte(s) — sans reconstitution automatique</span></div>'+
+ '<div class="v3-payment-intro"><b>Important :</b> la V2 a seulement été copiée à une date passée et n'est pas synchronisée avec la V3. Cet écran présente les paiements effectivement enregistrés en V3. Les historiques V2 sont conservés dans Firebase mais exclus de ce total courant. Une réconciliation des deux bases est nécessaire avant de reprendre les encaissements de Martina.</div>'+
+ ''+
+ ''+
+ '<div class="v3-payment-section"><h3>Règlements V3 par élève et par mois</h3><span class="small">'+payments.length+' transaction(s) V3. Les écritures V2 récentes ne sont pas automatiquement synchronisées.</span></div>'+
  table(['Élève','Date','Mois','Montant','Mode','Statut','Action'],transactionRows,'payments-table');
  p.querySelectorAll('[data-month-filter]').forEach(button=>button.onclick=()=>{
   const key=button.dataset.monthFilter;
