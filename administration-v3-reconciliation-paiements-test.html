@@ -860,6 +860,13 @@ const firebaseConfig={
 // G10 V3 — exploitation autonome des données importées. Aucun accès au chemin V2.
 const ROOT='g10TransportScolaireV3';
 const DATA=ROOT+'/data';
+document.addEventListener('DOMContentLoaded',()=>{
+ const warning=document.createElement('div');warning.id='g10-sim-banner';warning.setAttribute('role','status');
+ warning.style.cssText='position:sticky;top:0;z-index:9999;background:#fff4cc;border:2px solid #e19a21;color:#593c00;padding:12px 16px;text-align:center;font:800 15px Arial,sans-serif';
+ warning.textContent='MODE TEST — simulation locale uniquement. Aucun encaissement saisi ici n’est enregistré dans Firebase. Actualiser pour annuler.';
+ document.body.prepend(warning);
+});
+
 const READ_ROLES=ROOT+'/roles/';
 let authorized=false, activeRole='', signedUser=null, saveBusy=false;
 const tabs=document.getElementById('tabs');
@@ -994,6 +1001,16 @@ function mergeV3RecordEdit(current,baseline,record,changedFields){
  return {conflicts:[],record:merged};
 }
 async function saveRecord(module,record,before=null,changedFields=null){
+ // Test V5 : simulate payments in this browser session only.
+ if(module==='payments' && before===null){
+   if(!validId(String(record.id)))throw Error('Identifiant de simulation invalide.');
+   payments.push({...record,id:'SIM-'+String(record.id),simulation:true});
+   renderPayments();
+   message('SIMULATION LOCALE : compteurs recalculés, aucun paiement enregistré dans Firebase. Actualise pour annuler le test.','success');
+   return;
+ }
+ throw Error('MODE TEST : toute écriture Firebase est désactivée sur cette page.');
+
  if(!['subs','payments','expenses','drivers','staff','circuits','movements'].includes(module))throw Error('Module V3 non autorisé.');
  if(saveBusy)throw Error('Une sauvegarde est déjà en cours.');
  if(!validId(String(record.id)))throw Error('Identifiant invalide.');
@@ -1498,6 +1515,7 @@ function renderExpenses(){
 }
 function paymentForm(record=null,preselectStudentId=''){
  const chosenStudent=subs.find(x=>String(x.id)===String(preselectStudentId||record?.studentId||''));
+ if(record)throw Error('Modification de paiements réels désactivée dans le test.');
  const old=p.querySelector('#v3-payment-editor');if(old)old.remove();
  const wrapper=document.createElement('div');wrapper.id='v3-payment-editor';wrapper.className='card';wrapper.setAttribute('tabindex','-1');
  if(chosenStudent){const title=document.createElement('h3');title.textContent='Saisir le règlement de : '+chosenStudent.name;wrapper.appendChild(title);const note=document.createElement('p');note.className='small';note.textContent='Tarif mensuel : '+cash(chosenStudent.price)+' — renseigner uniquement le montant réellement encaissé. Aucun versement automatique.';wrapper.appendChild(note);}
@@ -1513,7 +1531,7 @@ function paymentForm(record=null,preselectStudentId=''){
   input.name=key;input.value=record?.[key]??(key==='studentId'?preselectStudentId:key==='date'?new Date().toISOString().slice(0,10):key==='month'?new Date().toISOString().slice(0,7):key==='method'?'Espèces':key==='status'?'Payé':'');
   box.appendChild(input);form.appendChild(box);
  }
- const save=document.createElement('button');save.className='btn green';save.type='submit';save.textContent=record?'Modifier le paiement V3':'Enregistrer le paiement V3';form.appendChild(save);
+ const save=document.createElement('button');save.className='btn green';save.type='submit';save.textContent=record?'Modification désactivée':'Simuler le paiement (sans sauvegarder)';form.appendChild(save);
  const cancel=document.createElement('button');cancel.className='edit-btn';cancel.type='button';cancel.textContent='Annuler';cancel.onclick=()=>wrapper.remove();form.appendChild(cancel);
  const error=document.createElement('div');error.setAttribute('role','alert');error.style.cssText='color:#a11b27;width:100%';form.appendChild(error);
  form.onsubmit=async e=>{
