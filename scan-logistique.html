@@ -91,7 +91,7 @@ $('confirm').onclick=async()=>{if(busy||!pending||role!=='logistique')return;bus
  try{
   const parentUid=(await db.ref(ROOT+'/parentStudentLinks/'+student.id).once('value')).val();
   if(parentUid){
-   const projection=ROOT+'/parentPortal/'+parentUid+'/children/'+student.id+'/movements/'+student.stage;
+   const projection=ROOT+'/parentPortal/'+parentUid+'/children/'+student.id+'/movementsByDay/'+student.day+'/'+student.stage;
    await db.ref(projection).set({timeMs:verified.atMs,source:'logistique-qr',eventId:id});
   }
  }catch(syncError){parentSync=false;console.error('Parent portal sync failed',syncError);}
