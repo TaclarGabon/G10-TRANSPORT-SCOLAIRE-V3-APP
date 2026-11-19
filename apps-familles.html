@@ -160,7 +160,7 @@ async function load(){
       }
     }
   }
-  $("fetchStatus").textContent=(data.children||[]).length+" enfant(s) · suivi actualisé à "+timeGab(data.updatedAt);
+  const lastMovement=children.reduce((max,ch)=>Math.max(max,...Object.values(ch.movements||{}).map(ev=>Number(ev?.timeMs)||0)),0);\n  $("fetchStatus").textContent=children.length+" enfant(s) · suivi actualisé à "+timeGab(Math.max(Number(data.updatedAt)||0,lastMovement));
  }catch(e){$("fetchStatus").textContent=friendly(e)}
  finally{loading=false;$("reload").disabled=false}
 }
