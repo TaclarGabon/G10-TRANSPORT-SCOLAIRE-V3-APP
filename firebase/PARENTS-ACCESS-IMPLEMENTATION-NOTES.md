@@ -31,12 +31,12 @@ La projection doit contenir uniquement les enfants de cette famille et les infor
 
 ## Adaptations obligatoires avant publication
 
-1. Remplacer dans `apps-familles.html` l’appel Cloud Function `getG10MyTransportV2` par une lecture de `parentPortal/{uid}`, et afficher l’état « demande en attente » tant que le dossier n’est pas activé.
-2. Remplacer dans `valider-acces-parents-v3.html` les appels Cloud Functions par une interface Direction qui lit les demandes, associe le numéro vérifié aux fiches d’abonnés, permet de choisir les enfants, puis publie la projection.
-3. Adapter le scan logistique pour recopier chaque nouveau mouvement dans le dossier parent correspondant. Sans cette étape, les mouvements des parents ne seront pas actualisés automatiquement.
-4. Ajouter une procédure de révocation et tester deux comptes parents distincts : chaque compte doit être refusé sur l’UID de l’autre.
-5. Tester les règles avec Firebase Emulator Suite ou Rules Playground, puis faire une sauvegarde des règles avant tout déploiement.
+1. Les pages `apps-familles.html` et `valider-acces-parents-v3.html` sont adaptées dans cette branche pour lire/écrire directement dans Realtime Database, sans callable.
+2. `scan-logistique.html` recopie le mouvement confirmé vers le dossier familial lié. La règle exige que l’événement QR soit déjà confirmé dans les mouvements V3.
+3. La Direction associe les fiches correspondant au numéro vérifié; le code désactive les fiches déjà liées à un autre compte et offre la suspension.
+4. Tester deux comptes parents distincts : chaque compte doit être refusé sur l’UID de l’autre. Tester aussi une demande SMS, l’approbation, les quatre étapes de scan, l’actualisation parent, et la suspension.
+5. Comparer les règles proposées avec les règles actives complètes, vérifier les rôles qui doivent conserver l’accès, puis tester avec Firebase Emulator Suite ou Rules Playground. Sauvegarder les règles actuelles avant tout déploiement.
 
 ## Limite importante
 
-Ce brouillon de règles ne suffit pas à rendre l’application Parents opérationnelle. Le code public actuel dépend de trois fonctions serveur pour lire les familles et approuver/révoquer les accès; aucune source de ces fonctions n’est présente dans le dépôt. Les règles ci-jointes ferment l’accès trop large mais ne doivent pas être publiées seules : cela pourrait bloquer les écrans existants sans fournir le parcours Parents sans Functions.
+Ces changements sont isolés sur une branche et ne sont pas publiés. Ils n’ont pas encore été testés sur Firebase Emulator ni avec des comptes réels. Ne déploie pas le fichier de règles seul : vérifie que le schéma et les rôles correspondent aux règles actives et que les trois pages HTML sont publiées ensemble. Le dossier parent ne contiendra que les données recopiées par la Direction et les mouvements synchronisés par le scan.
