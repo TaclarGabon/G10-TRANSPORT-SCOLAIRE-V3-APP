@@ -70,8 +70,8 @@
       "parentRequests": {
         ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
         "$uid": {
-          ".write": "(auth != null && auth.uid === $uid && !data.exists() && newData.exists() && auth.token.phone_number === newData.child('phone').val()) || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction')",
-          ".validate": "newData.hasChildren(['phone','requestedAt','status']) && newData.child('phone').isString() && newData.child('phone').val() === auth.token.phone_number && newData.child('requestedAt').val() === now && newData.child('status').val() === 'pending'",
+          ".write": "(auth != null && auth.uid === $uid && !data.exists() && newData.exists() && auth.token.phone_number === newData.child('phone').val()) || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin'))",
+          ".validate": "(auth != null && auth.uid === $uid && auth.token.phone_number === newData.child('phone').val() && newData.hasChildren(['phone','requestedAt','status']) && newData.child('requestedAt').val() === now && newData.child('status').val() === 'pending') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin') && newData.hasChildren(['phone','requestedAt','status']) && newData.child('phone').isString() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'revoked'))",
           "$other": {
             ".validate": false
           }
@@ -79,9 +79,9 @@
       },
       "parentPortal": {
         "$uid": {
-          ".read": "auth != null && (auth.uid === $uid || (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin'))) ",
-          ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' && newData.exists()",
-          ".validate": "newData.hasChildren(['children','updatedAt']) && newData.child('children').hasChildren() && newData.child('updatedAt').isNumber()"
+          ".read": "auth != null && ((auth.uid === $uid && data.child('enabled').val() === true) || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')))",
+          ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin') && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' && newData.exists()",
+          ".validate": "newData.hasChildren(['enabled','children','updatedAt']) && newData.child('enabled').isBoolean() && newData.child('children').hasChildren() && newData.child('updatedAt').isNumber()"
         }
       }
     },
