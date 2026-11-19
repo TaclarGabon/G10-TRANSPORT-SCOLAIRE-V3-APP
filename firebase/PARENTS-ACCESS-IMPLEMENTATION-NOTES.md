@@ -6,7 +6,7 @@
 
 - Les branches `g10TransportScolaireV2`, `v3EncryptedDrafts` et `v3SharedWorkspace` n’accordent l’accès qu’aux comptes activés ayant un rôle interne explicite (`direction`, `admin`, `exploitation`). Un compte sans rôle est refusé.
 - `g10TransportScolaireV3/parentRequests/{uid}` permet à un parent connecté par téléphone de déposer une demande sous son propre UID, avec le même numéro vérifié par Firebase Auth. La Direction peut consulter et traiter les demandes.
-- `g10TransportScolaireV3/parentPortal/{uid}` permet au parent de lire son seul dossier si celui-ci est activé. Seule la Direction peut publier ou désactiver un dossier.
+- `g10TransportScolaireV3/parentPortal/{uid}` permet au parent de lire son seul dossier si celui-ci est activé. La Direction ou l’Administration peut publier ou désactiver un dossier.
 
 ## Données à publier dans chaque dossier
 
@@ -29,11 +29,11 @@ La projection doit contenir uniquement les enfants de cette famille et les infor
 }
 ```
 
-## Adaptations obligatoires avant publication
+## Parcours déjà préparé dans la branche
 
 1. Les pages `apps-familles.html` et `valider-acces-parents-v3.html` sont adaptées dans cette branche pour lire/écrire directement dans Realtime Database, sans callable.
-2. `scan-logistique.html` recopie le mouvement confirmé vers le dossier familial lié. La règle exige que l’événement QR soit déjà confirmé dans les mouvements V3.
-3. La Direction associe les fiches correspondant au numéro vérifié; le code désactive les fiches déjà liées à un autre compte et offre la suspension.
+2. `scan-logistique.html` recopie le mouvement confirmé par jour dans le dossier familial lié. La règle exige que l’événement QR existe déjà dans les mouvements V3 et ait été scanné par le compte logistique connecté.
+3. La Direction ou l’Administration associe les fiches correspondant au numéro vérifié; le code bloque les fiches déjà liées à un autre compte et offre la suspension.
 4. Tester deux comptes parents distincts : chaque compte doit être refusé sur l’UID de l’autre. Tester aussi une demande SMS, l’approbation, les quatre étapes de scan, l’actualisation parent, et la suspension.
 5. Comparer les règles proposées avec les règles actives complètes, vérifier les rôles qui doivent conserver l’accès, puis tester avec Firebase Emulator Suite ou Rules Playground. Sauvegarder les règles actuelles avant tout déploiement.
 
