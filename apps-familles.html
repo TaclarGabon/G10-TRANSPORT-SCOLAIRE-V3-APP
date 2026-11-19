@@ -78,8 +78,8 @@ function friendly(e){
  const k=String(e?.code||"");
  if(k.includes("not-found")||k.includes("unavailable")||k.includes("internal"))
   return "Le service familial sécurisé n'est pas encore déployé dans Firebase. Aucun dossier réel n'a été ouvert.";
- if(k.includes("permission-denied"))
-  return "Connexion reconnue. L'accès à vos enfants nécessite la validation préalable de G10.";
+ if(k.includes("permission-denied")||k.includes("PERMISSION_DENIED"))
+  return "Accès familial non activé ou suspendu. Demandez à G10 de vérifier votre dossier.";
  if(k.includes("unauthenticated"))return "La connexion a expiré. Reconnectez votre numéro.";
  if(k.includes("operation-not-allowed"))return "Le service Téléphone n'est pas disponible dans Firebase.";
  if(k.includes("billing-not-enabled")||k.includes("payment-required"))return "L'envoi réel des SMS attend l'activation du forfait Firebase adapté.";
