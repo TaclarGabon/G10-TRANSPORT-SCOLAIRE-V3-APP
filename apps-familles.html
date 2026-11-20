@@ -160,7 +160,8 @@ async function load(){
       }
     }
   }
-  const lastMovement=children.reduce((max,ch)=>Math.max(max,...Object.values(ch.movementsByDay||{}).flatMap(day=>Object.values(day||{})).map(ev=>Number(ev?.timeMs)||0)),0);\n  $("fetchStatus").textContent=children.length+" enfant(s) · suivi actualisé à "+timeGab(Math.max(Number(data.updatedAt)||0,lastMovement));
+  const lastMovement=children.reduce((max,ch)=>Math.max(max,...Object.values(ch.movementsByDay||{}).flatMap(day=>Object.values(day||{})).map(ev=>Number(ev?.timeMs)||0)),0);
+  $("fetchStatus").textContent=children.length+" enfant(s) · suivi actualisé à "+timeGab(Math.max(Number(data.updatedAt)||0,lastMovement));
  }catch(e){$("fetchStatus").textContent=friendly(e)}
  finally{loading=false;$("reload").disabled=false}
 }
