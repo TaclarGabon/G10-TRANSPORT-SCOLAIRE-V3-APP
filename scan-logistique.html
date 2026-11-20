@@ -87,6 +87,15 @@ $('confirm').onclick=async()=>{if(busy||!pending||role!=='logistique')return;bus
  await ref.set(event);
  let verified;try{verified=(await ref.once('value')).val()}catch(e){notice('Firebase a confirmé l’enregistrement, mais la relecture a échoué. Ne rescane pas avant vérification.','error');return;}
  if(!verified||verified.id!==id||verified.source!=='logistique-qr'||verified.studentId!==student.id)throw Error('Relecture inattendue. Vérifie l’enregistrement avant de réessayer.');
+ let parentSync=true;
+ try{
+  const parentUid=(await db.ref(ROOT+'/parentStudentLinks/'+student.id).once('value')).val();
+  if(parentUid){
+   const projection=ROOT+'/parentPortal/'+parentUid+'/children/'+student.id+'/movementsByDay/'+student.day+'/'+student.stage;
+   await db.ref(projection).set({timeMs:verified.atMs,source:'logistique-qr',eventId:id});
+  }
+ }catch(syncError){parentSync=false;console.error('Parent portal sync failed',syncError);}
+ if(!parentSync){notice('Mouvement enregistré dans V3, mais la mise à jour de l’espace parent n’est pas confirmée. Ne rescane pas : demande à la Direction de vérifier.','error');return;}
  notice('Mouvement enregistré et relu dans Firebase V3 : '+student.name+' — '+stages[student.stage]+' — '+new Date(verified.atMs).toLocaleString('fr-FR',{timeZone:'Africa/Libreville'})+'.','success');
  }catch(e){notice('Enregistrement non confirmé : '+errorText(e)+'. Si le réseau a coupé, vérifie avant de recommencer.','error')}finally{busy=false;button.disabled=false;pending=null;$('candidate').hidden=true;}};
 // Aucun accès automatique à la caméra à l’ouverture. Connexion explicite requise.
