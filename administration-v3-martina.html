@@ -1048,7 +1048,7 @@ function editForm(module,record,fields,afterRow=null,isNew=false){
  for(const [key,label,type] of fields){
   const box=document.createElement('label');box.textContent=label;
 
-  const choices=key==='busId'?[['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]:
+  const choices=key==='busId'?[['','À affecter — aucun bus'],['BUS-1','Bus 1 — Akanda'],['BUS-2','Bus 2 — Inter-Akanda'],['BUS-3','Bus 3 — Owendo']]:
    key==='className'&&module==='subs'?[...new Set([record.className,...subs.map(s=>s.className)].map(x=>String(x||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]).concat([['__other__','Autre classe (à saisir)']]).reduce((all,x,i)=>i===0?[['','Choisir une classe'],x]:[...all,x],[]):
    key==='school'&&module==='subs'?[...new Set([record.school,...subs.map(s=>s.school)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>[x,x]).concat([['__other__','Autre établissement (à saisir)']]).reduce((all,x,i)=>i===0?[['','Choisir une école'],x]:[...all,x],[]):
    key==='plan'?['Standard','VIP','Partiel','A-R Akanda'].map(x=>[x,x]):
@@ -1283,7 +1283,7 @@ renderSubs=function(){
  v3AbonnesVisible().map(({s,i},n)=>'<tr data-v3-row-id="'+esc(s.id)+'"><td>'+(n+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.className)+'</td><td>'+esc(s.guardian)+'</td><td>'+esc(s.whatsapp||s.phone2)+'</td><td>'+esc(s.emergencyPhone||s.emergency)+'</td><td>'+esc(s.address)+'</td><td>'+esc(s.busId||'—')+'</td><td><button class="edit-btn" data-edit="'+i+'">Modifier</button></td><td><button class="clean-btn" data-clean="'+i+'">Nettoyer</button></td></tr>').join(''));
  v3AttachFilters('abonnes');
  v3AttachAbonnesToolbar();
- p.querySelector('#addSub').onclick=()=>{v3AbonnesClassFilter='';v3AbonnesSort='added';rowNew('subs',subFields,{busId:'BUS-1',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});}
+ p.querySelector('#addSub').onclick=()=>{v3AbonnesClassFilter='';v3AbonnesSort='added';rowNew('subs',subFields,{busId:'',plan:'Standard',price:0,amountReceived:0,subscriptionStatus:'À confirmer',qrRef:''});}
  p.querySelector('#exportSubsXlsx').onclick=exportSubscribersXlsx;
  p.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editForm('subs',subs[+b.dataset.edit],subFields,b.closest('tr')));
  p.querySelectorAll('[data-clean]').forEach(b=>b.onclick=async()=>{
@@ -1780,6 +1780,10 @@ renderCircuit=function(bus=currentCircuitBus,phase=currentCircuitPhase){
  if(schoolPhase)content+=table(['Ordre','Établissement','Élèves concernés','Déplacer'],schools.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s)+'</td><td>'+students.filter(x=>x.school===s).length+'</td><td><button class="edit-btn" data-cschool="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cschool="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="4">Aucun établissement affecté.</td></tr>');
  else content+=table(['Ordre','Élève','École','Axe','Bus affecté','Adresse / repère','Déplacer'],students.map((s,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.school)+'</td><td>'+esc(s.serviceZone||s.transportAxe||'—')+'</td><td><select class="v3-circuit-bus" data-student="'+esc(v3StudentKey(s))+'">'+Object.keys(v3BusNames).map(id=>'<option value="'+id+'"'+(id===s.busId?' selected':'')+'>'+esc(v3BusNames[id])+'</option>').join('')+'</select></td><td>'+esc(s.approxPlace||s.district||s.address||'—')+'</td><td><button class="edit-btn" data-cstudent="'+i+'" data-delta="-1">↑</button> <button class="edit-btn" data-cstudent="'+i+'" data-delta="1">↓</button></td></tr>').join('')||'<tr><td colspan="7">Aucun élève affecté à ce bus.</td></tr>');
  if(!schoolPhase)content+='<div class="card"><button type="button" class="btn green" id="v3-save-bus">Enregistrer le changement de bus dans Firebase V3</button> <span class="small">Choisir le nouveau bus, puis enregistrer. Un élève à la fois.</span></div>';
+ const unassigned=subs.filter(s=>!String(s.busId||'').trim()&&!s.v3Archived&&String(s.name||'').trim());
+ const busCounts=Object.fromEntries(Object.keys(v3BusNames).map(id=>[id,subs.filter(s=>s.busId===id&&!s.v3Archived).length]));
+ content+='<div class="card"><strong>Effectifs par bus</strong><div class="small">À vérifier avec les places disponibles et la durée réelle du circuit avant toute nouvelle affectation.</div>'+Object.entries(v3BusNames).map(([id,name])=>'<div>'+esc(name)+' : <b>'+busCounts[id]+'</b> élève(s)</div>').join('')+'</div>';
+ content+='<div class="card"><strong>Élèves à affecter ('+unassigned.length+')</strong><div class="small">Ces dossiers ne sont intégrés à aucun circuit. Vérifier adresse et horaires avec Ben/Martina avant de choisir un bus dans Abonnés.</div>'+(unassigned.length?table(['Élève','École','Adresse / repère','Bus'],unassigned.map(s=>'<tr><td>'+esc(s.name)+'</td><td>'+esc(s.school||'—')+'</td><td>'+esc(s.address||s.approxPlace||s.district||'Adresse à compléter')+'</td><td>À affecter</td></tr>').join('')):'<p class="small">Aucun élève en attente d’affectation.</p>')+'</div>';
  content+='<div class="card"><button type="button" class="edit-btn" id="v3-verify-route">Vérifier l’ordre du circuit dans Firebase V3</button> <span id="v3-route-check" role="status" class="small"></span></div>';
  v3CircuitShell(bus,phase,content);
  p.querySelectorAll('[data-cstudent]').forEach(b=>b.onclick=v3CircuitBusy(()=>v3ShiftStudent(bus,phase,Number(b.dataset.cstudent),Number(b.dataset.delta))));
