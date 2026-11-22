@@ -36,10 +36,12 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 <p>Pour votre première connexion, indiquez <b>votre numéro enregistré chez G10</b>. Vous recevrez un code temporaire par SMS lorsque le service sera activé.</p>
 <label for="parentNumber" style="display:block;font-weight:750;margin:14px 0 7px">Numéro du parent</label>
 <div style="display:flex;gap:8px;align-items:center">
- <span style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;background:#eaf3fb;font-weight:750">+241</span>
- <input id="parentNumber" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="11" placeholder="77 04 38 39" aria-label="Huit chiffres du téléphone gabonais" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%;min-width:0">
+ <select id="parentCountry" aria-label="Indicatif téléphonique" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;background:#eaf3fb;font-weight:750">
+  <option value="+241" selected>Gabon +241</option><option value="+1">Canada / États-Unis +1</option>
+ </select>
+ <input id="parentNumber" type="tel" inputmode="tel" autocomplete="tel" maxlength="15" placeholder="77 04 38 39" aria-label="Numéro du parent enregistré chez G10" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%;min-width:0">
 </div>
-<p class="muted">Les 8 chiffres sont regroupés par deux. Aucun nom d'enfant ni e-mail à saisir.</p>
+<p class="muted">Gabon : 8 chiffres. Canada / États-Unis : 10 chiffres. Saisis le numéro déjà enregistré chez G10.</p>
 <p><button id="sendCode" class="primary" type="button">Recevoir mon code par SMS</button></p>
 <div id="codeZone" class="hidden">
  <label for="parentCode" style="display:block;font-weight:750;margin:16px 0 7px">Code reçu par SMS</label>
@@ -180,14 +182,18 @@ $("signOut").onclick=async()=>{
  await auth.signOut();phoneConfirmation=null;$("parentCode").value="";
  $("codeZone").classList.add("hidden");show("activation");
 };
-$("parentNumber").oninput=()=>{
- const raw=$("parentNumber").value.replace(/\D/g,"").slice(0,8);
- $("parentNumber").value=raw.match(/.{1,2}/g)?.join(" ")||"";
-};
+function formatParentPhone(){
+ const prefix=$("parentCountry").value,limit=prefix==="+1"?10:8;
+ const digits=$("parentNumber").value.replace(/\D/g,"").slice(0,limit);
+ $("parentNumber").value=digits.match(/.{1,2}/g)?.join(" ")||"";
+}
+$("parentNumber").oninput=formatParentPhone;
+$("parentCountry").onchange=()=>{formatParentPhone();$("parentNumber").placeholder=$("parentCountry").value==="+1"?"604 555 1234":"77 04 38 39"};
 function phone(){
- const digits=$("parentNumber").value.replace(/\D/g,"");
- if(digits.length!==8)throw Error("Saisissez les huit chiffres de votre numéro gabonais.");
- return "+241"+digits;
+ const prefix=$("parentCountry").value,digits=$("parentNumber").value.replace(/\D/g,"");
+ const expected=prefix==="+1"?10:8;
+ if(digits.length!==expected)throw Error(prefix==="+1"?"Saisissez les dix chiffres du numéro canadien ou américain.":"Saisissez les huit chiffres du numéro gabonais.");
+ return prefix+digits;
 }
 $("sendCode").onclick=async()=>{
  if(activating)return;
