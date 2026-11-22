@@ -69,7 +69,7 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 (()=>{"use strict";
 const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);
-let auth,db,phoneConfirmation=null,parentRecaptcha=null,activating=false,loading=false,timer=null,selectedChildId=null;,parentRequestSentUid=null;
+let auth,db,phoneConfirmation=null,parentRecaptcha=null,activating=false,loading=false,timer=null,selectedChildId=null,parentRequestSentUid=null;
 const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
 function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
 function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
