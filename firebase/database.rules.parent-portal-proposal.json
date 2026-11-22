@@ -3,16 +3,16 @@
     ".read": false,
     ".write": false,
     "g10TransportScolaireV2": {
-      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
-      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')"
+      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')",
+      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')"
     },
     "v3EncryptedDrafts": {
-      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
-      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')"
+      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')",
+      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')"
     },
     "v3SharedWorkspace": {
-      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
-      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')"
+      ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')",
+      ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'exploitation')"
     },
     "g10TransportScolaireV3": {
       "roles": {
@@ -67,16 +67,6 @@
           ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')"
         }
       },
-      "parentRequests": {
-        ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
-        "$uid": {
-          ".write": "(auth != null && auth.uid === $uid && auth.token.phone_number === newData.child('phone').val() && newData.child('status').val() === 'pending') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin'))",
-          ".validate": "(auth != null && auth.uid === $uid && auth.token.phone_number === newData.child('phone').val() && newData.hasChildren(['phone','requestedAt','status']) && newData.child('requestedAt').val() === now && newData.child('status').val() === 'pending') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin') && newData.hasChildren(['phone','requestedAt','status']) && newData.child('phone').isString() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'revoked'))",
-          "$other": {
-            ".validate": false
-          }
-        }
-      },
       "parentPortal": {
         "$uid": {
           ".read": "auth != null && ((auth.uid === $uid && data.child('enabled').val() === true) || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')))",
@@ -96,11 +86,22 @@
           }
         }
       },
+      "parentRequests": {
+        ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
+        "$uid": {
+          ".write": "(auth != null && auth.uid === $uid && auth.token.phone_number === newData.child('phone').val() && newData.child('status').val() === 'pending') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin'))",
+          ".validate": "(auth != null && auth.uid === $uid && auth.token.phone_number === newData.child('phone').val() && newData.hasChildren(['phone','requestedAt','status']) && newData.child('requestedAt').val() === now && newData.child('status').val() === 'pending') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin') && newData.hasChildren(['phone','requestedAt','status']) && newData.child('phone').isString() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'revoked'))",
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
       "parentStudentLinks": {
-        ".read": "(auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'logistique') || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin'))",
+        ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
         "$studentId": {
           ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')",
-          ".validate": "newData.isString() && root.child('g10TransportScolaireV3/parentPortal').child(newData.val()).child('children').child($studentId).exists()"
+          ".validate": "newData.isString() && root.child('g10TransportScolaireV3/parentPortal').child(newData.val()).child('children').child($studentId).exists()",
+          ".read": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'logistique')"
         }
       }
     },
