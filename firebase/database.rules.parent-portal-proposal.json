@@ -69,7 +69,7 @@
       },
       "parentPortal": {
         "$uid": {
-          ".read": "auth != null && ((auth.uid === $uid && data.child('enabled').val() === true) || (auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')))",
+          ".read": "auth != null && ((auth.uid === $uid && (data.child('enabled').val() === true || !data.exists())) || (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin')))",
           ".write": "auth != null && root.child('g10TransportScolaireV3/roles').child(auth.uid).child('enabled').val() === true && (root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'direction' || root.child('g10TransportScolaireV3/roles').child(auth.uid).child('role').val() === 'admin') && newData.exists()",
           ".validate": "newData.hasChildren(['enabled','children','updatedAt']) && newData.child('enabled').isBoolean() && newData.child('children').hasChildren() && newData.child('updatedAt').isNumber()",
           "children": {
