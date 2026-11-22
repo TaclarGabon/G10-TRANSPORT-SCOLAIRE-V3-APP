@@ -159,7 +159,13 @@ async function load(){
   }
   const lastMovement=children.reduce((max,ch)=>Math.max(max,...Object.values(ch.movementsByDay||{}).flatMap(day=>Object.values(day||{})).map(ev=>Number(ev?.timeMs)||0)),0);
   $("fetchStatus").textContent=children.length+" enfant(s) · suivi actualisé à "+timeGab(Math.max(Number(data.updatedAt)||0,lastMovement));
- }catch(e){$("fetchStatus").textContent=friendly(e)}
+ }catch(e){
+ const uid=auth?.currentUser?.uid,phoneNumber=auth?.currentUser?.phoneNumber||"",code=String(e?.code||"");
+ if(uid&&phoneNumber&&parentRequestSentUid!==uid&&(code.includes("permission-denied")||code.includes("PERMISSION_DENIED"))){
+  try{await db.ref("g10TransportScolaireV3/parentRequests/"+uid).set({phone:phoneNumber,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});parentRequestSentUid=uid;$("children").replaceChildren(textNode("card","Votre demande d’accès a été envoyée à la Direction G10."));$("fetchStatus").textContent="Accès en attente de validation de G10.";}
+  catch(requestError){$("fetchStatus").textContent=friendly(requestError)}
+ }else $("fetchStatus").textContent=friendly(e)
+}
  finally{loading=false;$("reload").disabled=false}
 }
 $("enterParent").onclick=()=>show(auth?.currentUser?"parentSpace":"activation");
