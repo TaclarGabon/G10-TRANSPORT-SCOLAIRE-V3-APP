@@ -1,0 +1,30 @@
+name: Vérification lecture V2 — branche isolée
+
+on:
+  pull_request:
+    paths:
+      - 'firebase/v2-readonly-adapter.js'
+      - 'firebase/v2-preview-ui.js'
+      - 'tests/v2-readonly-adapter.test.cjs'
+      - '.github/workflows/v2-readonly-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests-sans-firebase:
+    name: Syntaxe et tests sans accès Firebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Vérifier la syntaxe JavaScript
+        run: |
+          node --check firebase/v2-readonly-adapter.js
+          node --check firebase/v2-preview-ui.js
+      - name: Tester la lecture sans mutation
+        run: node --test tests/v2-readonly-adapter.test.cjs
