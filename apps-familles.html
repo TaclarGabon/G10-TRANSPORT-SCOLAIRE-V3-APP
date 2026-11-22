@@ -36,10 +36,12 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 <p>Pour votre première connexion, indiquez <b>votre numéro enregistré chez G10</b>. Vous recevrez un code temporaire par SMS lorsque le service sera activé.</p>
 <label for="parentNumber" style="display:block;font-weight:750;margin:14px 0 7px">Numéro du parent</label>
 <div style="display:flex;gap:8px;align-items:center">
- <span style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;background:#eaf3fb;font-weight:750">+241</span>
- <input id="parentNumber" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="11" placeholder="77 04 38 39" aria-label="Huit chiffres du téléphone gabonais" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%;min-width:0">
+ <select id="parentCountry" aria-label="Indicatif téléphonique" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;background:#eaf3fb;font-weight:750">
+  <option value="+241" selected>Gabon +241</option><option value="+1">Canada / États-Unis +1</option>
+ </select>
+ <input id="parentNumber" type="tel" inputmode="tel" autocomplete="tel" maxlength="15" placeholder="77 04 38 39" aria-label="Numéro du parent enregistré chez G10" style="padding:12px;border:1px solid #c4d8e8;border-radius:9px;width:100%;min-width:0">
 </div>
-<p class="muted">Les 8 chiffres sont regroupés par deux. Aucun nom d'enfant ni e-mail à saisir.</p>
+<p class="muted">Gabon : 8 chiffres. Canada / États-Unis : 10 chiffres. Saisis le numéro déjà enregistré chez G10.</p>
 <p><button id="sendCode" class="primary" type="button">Recevoir mon code par SMS</button></p>
 <div id="codeZone" class="hidden">
  <label for="parentCode" style="display:block;font-weight:750;margin:16px 0 7px">Code reçu par SMS</label>
@@ -63,12 +65,13 @@ footer{font-size:12px;color:#60788d;padding:20px 0}
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase/parent-phone.js"></script>
 <script>
 (()=>{"use strict";
 const config={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
 const $=id=>document.getElementById(id);
-let auth,getFn,phoneConfirmation=null,parentRecaptcha=null,activating=false,loading=false,timer=null,selectedChildId=null;
+let auth,db,phoneConfirmation=null,parentRecaptcha=null,activating=false,loading=false,timer=null,selectedChildId=null,parentRequestSentUid=null;
 const stages=[["boardingAM","1. Montée du matin"],["schoolArrival","2. Arrivée à l'école"],["boardingPM","3. Montée au retour"],["homeDrop","4. Dépose du soir"]];
 function show(id){for(const key of ["home","activation","parentSpace"])$(key).classList.toggle("hidden",key!==id);window.scrollTo(0,0)}
 function message(txt){$("error").textContent=txt;$("error").classList.toggle("hidden",!txt)}
@@ -78,8 +81,8 @@ function friendly(e){
  const k=String(e?.code||"");
  if(k.includes("not-found")||k.includes("unavailable")||k.includes("internal"))
   return "Le service familial sécurisé n'est pas encore déployé dans Firebase. Aucun dossier réel n'a été ouvert.";
- if(k.includes("permission-denied"))
-  return "Connexion reconnue. L'accès à vos enfants nécessite la validation préalable de G10.";
+ if(k.includes("permission-denied")||k.includes("PERMISSION_DENIED"))
+  return "Accès familial non activé ou suspendu. Demandez à G10 de vérifier votre dossier.";
  if(k.includes("unauthenticated"))return "La connexion a expiré. Reconnectez votre numéro.";
  if(k.includes("operation-not-allowed"))return "Le service Téléphone n'est pas disponible dans Firebase.";
  if(k.includes("billing-not-enabled")||k.includes("payment-required"))return "L'envoi réel des SMS attend l'activation du forfait Firebase adapté.";
@@ -99,7 +102,7 @@ function childCard(c){
  for(const [stage,label]of stages){
   const row=document.createElement("div");row.className="step";
   const b=document.createElement("b");b.textContent=label;row.append(b);
-  const ev=c.movements?.[stage];
+  const ev=c.movementsByDay?.[$("day").value]?.[stage];
   if(!ev)row.append(textNode("muted","En attente"));
   else{
    const t=document.createElement("time");t.textContent=timeGab(ev.timeMs)+" — Confirmé";row.append(t);
@@ -118,11 +121,20 @@ function childCard(c){
 }
 async function load(){
  if(!auth?.currentUser||loading)return;
- loading=true;$("reload").disabled=true;$("fetchStatus").textContent="Lecture G10 V3…";
+ loading=true;$("reload").disabled=true;$("fetchStatus").textContent="Lecture de votre dossier familial…";
  try{
-  const result=await getFn({day:$("day").value}),data=result.data||{};
   const host=$("children");host.replaceChildren();
-  const children=data.children||[];
+  const snap=await db.ref("g10TransportScolaireV3/parentPortal/"+auth.currentUser.uid).once("value");
+  const profile=snap.val();
+  if(!profile||profile.enabled!==true){
+   const uid=auth.currentUser.uid,phoneNumber=auth.currentUser.phoneNumber||"";
+   if(!phoneNumber)throw new Error("Le numéro du compte n’est pas vérifié par Firebase.");
+   if(parentRequestSentUid!==uid){await db.ref("g10TransportScolaireV3/parentRequests/"+uid).set({phone:phoneNumber,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});parentRequestSentUid=uid;}
+   host.append(textNode("card",profile?"Cet accès était suspendu. Une demande de réactivation a été transmise à la Direction G10.":"Votre numéro est vérifié. Votre demande d’accès a été transmise à la Direction G10."));
+   $("fetchStatus").textContent="Accès en attente de validation de G10.";selectedChildId=null;return;
+  }
+  const data={...profile,children:Object.entries(profile.children||{}).map(([id,child])=>({id,...child}))};
+  const children=data.children;
   if(!children.length){host.append(textNode("card","Aucun dossier associé."));selectedChildId=null;}
   else if(children.length===1){
     selectedChildId=String(children[0].id);
@@ -147,8 +159,15 @@ async function load(){
       }
     }
   }
-  $("fetchStatus").textContent=(data.children||[]).length+" enfant(s) · suivi actualisé à "+timeGab(data.updatedAt);
- }catch(e){$("fetchStatus").textContent=friendly(e)}
+  const lastMovement=children.reduce((max,ch)=>Math.max(max,...Object.values(ch.movementsByDay||{}).flatMap(day=>Object.values(day||{})).map(ev=>Number(ev?.timeMs)||0)),0);
+  $("fetchStatus").textContent=children.length+" enfant(s) · suivi actualisé à "+timeGab(Math.max(Number(data.updatedAt)||0,lastMovement));
+ }catch(e){
+ const uid=auth?.currentUser?.uid,phoneNumber=auth?.currentUser?.phoneNumber||"",code=String(e?.code||"");
+ if(uid&&phoneNumber&&parentRequestSentUid!==uid&&(code.includes("permission-denied")||code.includes("PERMISSION_DENIED"))){
+  try{await db.ref("g10TransportScolaireV3/parentRequests/"+uid).set({phone:phoneNumber,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});parentRequestSentUid=uid;$("children").replaceChildren(textNode("card","Votre demande d’accès a été envoyée à la Direction G10."));$("fetchStatus").textContent="Accès en attente de validation de G10.";}
+  catch(requestError){$("fetchStatus").textContent=friendly(requestError)}
+ }else $("fetchStatus").textContent=friendly(e)
+}
  finally{loading=false;$("reload").disabled=false}
 }
 $("enterParent").onclick=()=>show(auth?.currentUser?"parentSpace":"activation");
@@ -163,14 +182,18 @@ $("signOut").onclick=async()=>{
  await auth.signOut();phoneConfirmation=null;$("parentCode").value="";
  $("codeZone").classList.add("hidden");show("activation");
 };
-$("parentNumber").oninput=()=>{
- const raw=$("parentNumber").value.replace(/\D/g,"").slice(0,8);
- $("parentNumber").value=raw.match(/.{1,2}/g)?.join(" ")||"";
-};
+function formatParentPhone(){
+ const prefix=$("parentCountry").value,limit=prefix==="+1"?10:8;
+ const digits=$("parentNumber").value.replace(/\D/g,"").slice(0,limit);
+ $("parentNumber").value=digits.match(/.{1,2}/g)?.join(" ")||"";
+}
+$("parentNumber").oninput=formatParentPhone;
+$("parentCountry").onchange=()=>{formatParentPhone();$("parentNumber").placeholder=$("parentCountry").value==="+1"?"604 555 1234":"77 04 38 39"};
 function phone(){
- const digits=$("parentNumber").value.replace(/\D/g,"");
- if(digits.length!==8)throw Error("Saisissez les huit chiffres de votre numéro gabonais.");
- return "+241"+digits;
+ const prefix=$("parentCountry").value,digits=$("parentNumber").value.replace(/\D/g,"");
+ const expected=prefix==="+1"?10:8;
+ if(digits.length!==expected)throw Error(prefix==="+1"?"Saisissez les dix chiffres du numéro canadien ou américain.":"Saisissez les huit chiffres du numéro gabonais.");
+ return prefix+digits;
 }
 $("sendCode").onclick=async()=>{
  if(activating)return;
@@ -202,12 +225,10 @@ $("verifyCode").onclick=async()=>{
  }catch(e){$("activateStatus").textContent=friendly(e)}
  finally{activating=false;$("verifyCode").disabled=false}
 };
-if(!window.firebase?.auth||!window.firebase?.functions){message("Firebase est indisponible. Vérifiez votre connexion.");return}
+if(!window.firebase?.auth||!window.firebase?.database){message("Firebase est indisponible. Vérifiez votre connexion.");return}
 const app=firebase.apps.find(a=>a.name==="g10-family-app")||firebase.initializeApp(config,"g10-family-app");
-auth=app.auth();auth.languageCode="fr";
+auth=app.auth();db=app.database();auth.languageCode="fr";
 auth.settings.appVerificationDisabledForTesting=false;
-const fn=app.functions("europe-west1");
-getFn=fn.httpsCallable("getG10MyTransportV2");
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
  auth.onAuthStateChanged(user=>{
   if(timer){clearInterval(timer);timer=null}

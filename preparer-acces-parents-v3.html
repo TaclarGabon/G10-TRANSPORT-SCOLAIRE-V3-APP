@@ -12,8 +12,8 @@ input{width:100%;padding:12px;border-radius:9px;border:1px solid #c7d8e8;font:in
 <main>
 <section class="card">
 <h2>Le lien est identique pour toutes les familles</h2>
-<p>La Direction n'a <strong>aucun code PIN ni lien individuel à préparer</strong>. Chaque famille utilise le numéro de téléphone qu'elle a déjà communiqué à G10, puis reçoit un code WhatsApp généré par l'application.</p>
-<p class="warning"><strong>Attention — avant toute diffusion :</strong> l'envoi automatique WhatsApp et le service Firebase Parents doivent être activés et testés avec une vraie famille. À ce stade, ne transmets pas encore le lien à tous les abonnés.</p>
+<p>La Direction n'a <strong>aucun code PIN ni lien individuel à préparer</strong>. Chaque famille utilise le numéro de téléphone qu'elle a déjà communiqué à G10, puis reçoit un code SMS envoyé par Firebase Auth.</p>
+<p class="warning"><strong>Attention — avant toute diffusion :</strong> les SMS Firebase et le nouvel espace de données familial doivent être configurés et testés avec une vraie famille. À ce stade, ne transmets pas encore le lien à tous les abonnés.</p>
 <label for="link">Lien G10 Apps Scolaire</label>
 <input id="link" readonly value="https://taclargabon.github.io/G10-TRANSPORT-SCOLAIRE-V3-APP/apps-familles.html">
 <p><button id="copy" type="button">Copier le lien pour notre pilote</button><a class="btn" href="apps-familles.html" target="_blank" rel="noopener">Voir l'application</a></p>
@@ -26,7 +26,7 @@ input{width:100%;padding:12px;border-radius:9px;border:1px solid #c7d8e8;font:in
 <div class="step"><strong>3. Laisser le parent se connecter</strong><p>Il indique son numéro (+241), reçoit son code WhatsApp, le saisit une fois et retrouve automatiquement ses enfants. Sa session reste ouverte sur cet appareil.</p></div>
 <textarea id="message" rows="5" readonly style="width:100%;border:1px solid #c9d9e8;border-radius:10px;padding:12px;font:inherit">Bonjour, voici le lien G10 Apps Scolaire pour suivre les trajets de vos enfants : https://taclargabon.github.io/G10-TRANSPORT-SCOLAIRE-V3-APP/apps-familles.html
 
-Choisissez « Espace Parents », entrez votre numéro de téléphone enregistré chez G10, puis vérifiez le code temporaire reçu sur WhatsApp. Lors de vos prochaines visites, vous accéderez directement à votre espace tant que votre session restera ouverte.</textarea>
+Choisissez « Espace Parents », entrez votre numéro de téléphone enregistré chez G10, puis vérifiez le code temporaire reçu par SMS. Lors de vos prochaines visites, vous accéderez directement à votre espace tant que votre session restera ouverte.</textarea>
 <p><button type="button" id="copyMessage">Copier le message à envoyer après validation</button></p>
 </section>
 <p class="muted">Les comptes Direction et Logistique sont distincts des comptes Parents. Aucun dossier familial ne figure dans le HTML public de cette page.</p>

@@ -21,7 +21,7 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#e5eef6;color:v
 </style></head><body>
 <header><h1>🚌 G10 Direction — Accès Parents</h1><p>Autoriser les familles déjà enregistrées dans la V3, sans ressaisie et sans modification de Martina</p></header>
 <main>
-<div class="notice"><strong>Réservé à la Direction G10.</strong> Cette page n'est pas destinée aux parents. Seuls les numéros réels des responsables, déjà enregistrés sur leurs fiches G10 V3, peuvent être validés. Ne valide jamais un compte de démonstration Firebase.</div>
+<div class="notice"><strong>Réservé à la Direction et à l’Administration G10.</strong> Cette page n'est pas destinée aux parents. Seuls les numéros réels des responsables, déjà enregistrés sur leurs fiches G10 V3, peuvent être validés. Ne valide jamais un compte de démonstration Firebase.</div>
 <section class="card" id="gate">
 <h2>Connexion Direction</h2>
 <form id="login">
@@ -32,7 +32,7 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#e5eef6;color:v
 <section id="admin" class="hidden">
 <div class="card"><div class="row"><strong id="who"></strong><button class="secondary" id="logout">Fermer la session</button></div>
 <h2>Choisir un dossier existant</h2>
-<p class="muted">Rechercher un parent ou un enfant. Le dossier est retrouvé dans Firebase V3 en lecture seule. Aucun contact n'est recopié dans la page.</p>
+<p class="muted">Rechercher un parent ou un enfant. Les demandes proviennent des comptes parents vérifiés par SMS. La Direction choisit les fiches reliées au même numéro après contrôle d'identité.</p>
 <label for="search">Rechercher</label><input id="search" placeholder="Nom de l'enfant ou du parent">
 <div style="display:flex;gap:9px;align-items:center;margin-top:14px">
 <input type="checkbox" id="verified"><label for="verified" style="margin:0;font-weight:600">Je confirme avoir vérifié l'identité du responsable, que son numéro est réel et qu'il n'est pas un numéro fictif Firebase.</label>
@@ -40,81 +40,25 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#e5eef6;color:v
 <div id="families"></div>
 </div></section>
 <div class="card"><p id="status" role="status">Connexion Firebase en attente. Aucun dossier familial n'est encore activé.</p></div>
-<p class="muted">Pour une nouvelle famille : 1) le parent vérifie son vrai numéro dans G10 Apps, 2) la Direction confirme son identité ici une seule fois, 3) le parent retrouve ses enfants. Le serveur autorise uniquement les enfants associés au contact vérifié dans G10 V3.</p>
+<p class="muted">Pour une nouvelle famille : 1) le parent vérifie son vrai numéro dans G10 Apps, 2) la Direction confirme son identité ici une seule fois, 3) le parent retrouve ses enfants. Les règles Firebase limitent chaque compte parent aux seules fiches publiées pour son UID.</p>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase/parent-phone.js"></script>
 <script>
 (()=>{"use strict";
 const cfg={apiKey:"AIzaSyA-Pduk1GBBJ2B1-fC3-f00l-WQO3Tiq-o",authDomain:"g10-transport-scolaire-v2.firebaseapp.com",databaseURL:"https://g10-transport-scolaire-v2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"g10-transport-scolaire-v2",appId:"1:836907463780:web:585e2b4f075c8ff172db71"};
-const $=id=>document.getElementById(id);let auth,list,approve,revoke,records=[];
+const $=id=>document.getElementById(id);let auth,db,subs={},movements={},requests={},links={};const ROOT="g10TransportScolaireV3";
 function status(t){$("status").textContent=t}
-function human(e){
- const code=String(e?.code||"");
- if(code.includes("not-found")||code.includes("unavailable")||code.includes("internal"))
-  return "Le service sécurisé d'accès Parents n'a pas encore été déployé. Aucune autorisation modifiée.";
- if(code.includes("permission-denied"))return "Accès refusé : compte Direction actif obligatoire.";
- return String(e?.message||"Opération non confirmée");
-}
-function container(cls,text){const el=document.createElement("div");el.className=cls;el.textContent=text;return el}
-function render(){
- const q=$("search").value.trim().toLowerCase(),listEl=$("families");listEl.replaceChildren();
- const items=records.filter(e=>(e.studentName+" "+e.guardian).toLowerCase().includes(q)).slice(0,70);
- for(const row of items){
-  const card=document.createElement("section");card.className="family";
-  const h=document.createElement("h3");h.textContent=row.studentName;card.append(h);
-  card.append(container("muted",[row.school,row.guardian,row.phoneHint].filter(Boolean).join(" · ")));
-  const actions=document.createElement("div");actions.className="actions";
-  const yes=document.createElement("button");yes.textContent="Autoriser le parent";yes.disabled=!row.eligible;
-  const no=document.createElement("button");no.className="danger";no.textContent="Révoquer l'accès";no.disabled=!row.eligible;
-  async function call(fn,verb,needsConfirmation){
-   if(!row.eligible){status("Dossier parental incomplet ou ambigu.");return}
-   if(needsConfirmation&&!$("verified").checked){status("Coche d'abord la vérification d'identité et du numéro réel.");return}
-   if(!confirm(verb+" du dossier de "+row.studentName+" ? Cela ne modifiera pas ses données V3."))return;
-   yes.disabled=true;no.disabled=true;
-   status("Vérification côté serveur en cours…");
-   try{
-    const result=(await fn({studentId:row.studentId,verifiedInPerson:needsConfirmation})).data;
-    status(verb==="Autorisation"?
-      "Accès personnel approuvé pour le compte Firebase du parent. "+result.childCount+" enfant(s) rattaché(s). Le parent peut rouvrir G10 Apps et actualiser.":
-      "Accès révoqué. Aucun dossier de la V3 n'a été modifié.");
-   }catch(e){status(human(e))}
-   finally{yes.disabled=!row.eligible;no.disabled=!row.eligible}
-  }
-  yes.onclick=()=>call(approve,"Autorisation",true);
-  no.onclick=()=>call(revoke,"Révocation",false);
-  actions.append(yes,no);card.append(actions);listEl.append(card);
- }
- if(!items.length)listEl.append(container("muted","Aucun dossier trouvé."));
-}
-$("search").oninput=render;
-$("login").onsubmit=async e=>{
- e.preventDefault();$("connect").disabled=true;status("Connexion Direction en cours…");
- try{
-  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
-  await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);
-  $("password").value="";
- }catch(e){$("password").value="";status(human(e))}
- finally{$("connect").disabled=false}
-};
-$("logout").onclick=async()=>{await auth.signOut();status("Session Direction fermée.")};
-if(!window.firebase?.auth||!window.firebase?.functions){status("Firebase indisponible.");return}
-const app=firebase.apps.find(a=>a.name==="g10-parent-approval")||firebase.initializeApp(cfg,"g10-parent-approval");
-auth=app.auth();const fn=app.functions("europe-west1");
-list=fn.httpsCallable("listG10ParentFamiliesV2");
-approve=fn.httpsCallable("approveG10ParentV2");
-revoke=fn.httpsCallable("revokeG10ParentV2");
-auth.onAuthStateChanged(async user=>{
- $("gate").classList.toggle("hidden",!!user);$("admin").classList.toggle("hidden",!user);
- if(!user){records=[];return}
- $("who").textContent="Compte Direction : "+(user.email||"G10");
- try{
-  status("Lecture en cours, abonnés G10 V3…");
-  const response=(await list({})).data;
-  records=response.families||[];render();
-  status(records.length+" dossiers V3 consultables. Aucun accès accordé sans validation expresse.");
- }catch(e){status(human(e))}
-});
+function dayGab(){const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Libreville",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return p.year+"-"+p.month+"-"+p.day}
+function rows(obj){return Array.isArray(obj)?obj.map((v,i)=>[String(i),v]):Object.entries(obj||{})}
+function childrenFor(phone){return rows(subs).filter(([,s])=>s&&[s.whatsapp,s.phone2,s.phone,s.guardianPhone].some(v=>window.G10ParentPhone.samePhone(v,phone)))}
+function childMoves(id){const out={};for(const [,m] of rows(movements)){if(!m||String(m.studentId||"")!==String(id))continue;const day=String(m.day||m.date||""),stage=String(m.stage||""),at=Number(m.atMs||m.timeMs||m.timestamp||0);if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!["boardingAM","schoolArrival","boardingPM","homeDrop"].includes(stage)||!at)continue;if(!out[day])out[day]={};if(!out[day][stage]||at>out[day][stage].timeMs)out[day][stage]={timeMs:at,source:m.source||"",validatedBy:m.validatedBy||""}}return out}
+function safeText(tag,txt,cls){const e=document.createElement(tag);e.textContent=txt||"";if(cls)e.className=cls;return e}
+function render(){const host=$("families");host.replaceChildren();const q=$("search").value.trim().toLowerCase();const reqs=Object.entries(requests).filter(([uid,r])=>r&&String(r.status||"pending")!=="revoked"&&String(r.phone||"").toLowerCase().includes(q));for(const [uid,r] of reqs){const matches=childrenFor(r.phone),card=document.createElement("section");card.className="family";card.append(safeText("h3","Demande · "+r.phone));card.append(safeText("small","Statut : "+(r.status||"en attente")+" · "+matches.length+" fiche(s) V3 correspondant au numéro"));const chosen=[];for(const [key,s] of matches){const sid=String(s.id||key),label=document.createElement("label");label.style.cssText="display:flex;gap:9px;align-items:flex-start;margin:9px 0;font-weight:500";const cb=document.createElement("input");cb.type="checkbox";cb.checked=true;cb.value=sid;cb.disabled=!!links[sid]&&links[sid]!==uid;const desc=safeText("span",[s.name||"Élève",s.school,s.className||s.classe,cb.disabled?"Déjà lié à un autre compte":""].filter(Boolean).join(" · "));label.append(cb,desc);card.append(label);chosen.push({cb,s,sid})}const actions=document.createElement("div");actions.className="actions";const yes=document.createElement("button");yes.textContent="Autoriser les fiches cochées";yes.disabled=!matches.length||r.status==="approved";yes.onclick=async()=>{if(!$("verified").checked){status("Confirme d’abord l’identité du responsable et son numéro.");return}const selected=chosen.filter(x=>x.cb.checked&&links[x.sid]!==uid);if(!selected.length){status("Coche au moins une fiche.");return}if(!confirm("Associer "+selected.length+" fiche(s) au compte vérifié "+r.phone+" ?"))return;yes.disabled=true;status("Publication du dossier familial…");try{const kids={};for(const x of selected)kids[x.sid]={name:x.s.name||"",school:x.s.school||"",className:x.s.className||x.s.classe||"",movementsByDay:childMoves(x.sid)};await db.ref(ROOT+"/parentPortal/"+uid).set({enabled:true,children:kids,updatedAt:firebase.database.ServerValue.TIMESTAMP});await Promise.all(selected.map(x=>db.ref(ROOT+"/parentStudentLinks/"+x.sid).set(uid)));await db.ref(ROOT+"/parentRequests/"+uid).set({phone:r.phone,requestedAt:r.requestedAt||firebase.database.ServerValue.TIMESTAMP,status:"approved"});for(const x of selected)links[x.sid]=uid;requests[uid].status="approved";status("Accès approuvé pour "+selected.length+" fiche(s). La famille peut actualiser son application.");render()}catch(e){status("Enregistrement refusé : "+(e.message||e));yes.disabled=false}};const no=document.createElement("button");no.className="danger";no.textContent="Suspendre l’accès";no.disabled=r.status!=="approved";no.onclick=async()=>{if(!confirm("Suspendre l’accès familial de "+r.phone+" ?"))return;try{const snap=await db.ref(ROOT+"/parentPortal/"+uid).once("value"),p=snap.val();if(p){await db.ref(ROOT+"/parentPortal/"+uid).update({enabled:false,updatedAt:firebase.database.ServerValue.TIMESTAMP});await Promise.all(Object.keys(p.children||{}).map(async sid=>{if(links[sid]===uid){await db.ref(ROOT+"/parentStudentLinks/"+sid).remove();delete links[sid]}}))}await db.ref(ROOT+"/parentRequests/"+uid).set({phone:r.phone,requestedAt:r.requestedAt||Date.now(),status:"revoked"});requests[uid].status="revoked";status("Accès suspendu.");render()}catch(e){status("Suspension non confirmée : "+(e.message||e))}};actions.append(yes,no);card.append(actions);host.append(card)}if(!reqs.length)host.append(safeText("p","Aucune demande familiale à traiter.","muted"))}
+async function load(){status("Vérification du rôle Direction…");const role=(await db.ref(ROOT+"/roles/"+auth.currentUser.uid).once("value")).val();if(!role||role.enabled!==true||!["direction","admin"].includes(role.role)){await auth.signOut();throw Error("Compte Direction V3 actif obligatoire.")}$("who").textContent="Compte Direction : "+(auth.currentUser.email||"G10");status("Lecture des abonnés et demandes…");const paths=["data/subs","data/movements","parentRequests","parentStudentLinks"];const snaps=await Promise.all(paths.map(p=>db.ref(ROOT+"/"+p).once("value")));subs=snaps[0].val()||{};movements=snaps[1].val()||{};requests=snaps[2].val()||{};links=snaps[3].val()||{};render();status("Données chargées. Vérifie l’identité et les fiches avant chaque autorisation.")}
+$("search").oninput=render;$("login").onsubmit=async e=>{e.preventDefault();$("connect").disabled=true;status("Connexion Direction…");try{await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);$("password").value=""}catch(e){$("password").value="";status(e.message||"Connexion refusée.")}finally{$("connect").disabled=false}};$("logout").onclick=async()=>{await auth.signOut();status("Session Direction fermée.")};
+if(!window.firebase?.auth||!window.firebase?.database){status("Firebase indisponible.");return}const app=firebase.apps.find(a=>a.name==="g10-parent-approval")||firebase.initializeApp(cfg,"g10-parent-approval");auth=app.auth();db=app.database();auth.onAuthStateChanged(async user=>{$("gate").classList.toggle("hidden",!!user);$("admin").classList.toggle("hidden",!user);if(!user){subs={};movements={};requests={};return}try{await load()}catch(e){status(e.message||"Lecture refusée.")}});
 })();
 </script></body></html>
